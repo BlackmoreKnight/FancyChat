@@ -75,6 +75,7 @@ local fcw = T{
 		itemInfo = {},
 		itemIcons = T{{},{},{},{}},
 		itemTexture = T{{},{},{},{}},
+		autoHideCheckCD = 0,
 		autoHideFadeTime = 0,
 		autoHideFade = 0,
 		autoHideTime = 0,
@@ -82,7 +83,7 @@ local fcw = T{
 		LoginStatus,
 		Zoning = false,
 		ProcessingText = false,
-		OutlineColor = 0xFF000000,
+		--OutlineColor = 0xFF000000,
 		ErrorMsg = '',
 		GuideMeDocked = true,
 		NotepadDocked = true,
@@ -170,7 +171,7 @@ local fcw = T{
 		windowFlagsGuideMe = bit.bor( ImGuiWindowFlags_NoBringToFrontOnFocus, ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoNav),
 	},
 	T{
-		OutlineColor = 0xFF000000,
+		--OutlineColor = 0xFF000000,
 		PositionLinesRequest = {false,false},
 		PrevAnchor_X = -1,
 		PrevAnchor_Y = -1,
@@ -417,7 +418,8 @@ local allSettings = T{
 
 local defaultColors = {
 	tell 			= {0xFFD35AFF},
-	party 			= {0xFF7BD3FF},
+	--party 			= {0xFF7BD3FF},
+	party 			= {0xFF4CDEE6},
 	shout			= {0xFFFF5E5E},
 	linkshell1		= {0xFF50FFD0},
 	linkshell2		= {0xFF00FF80},
@@ -858,22 +860,38 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 		
 		
 		if AshitaCore:GetChatManager():IsInputOpen() ~= 0x00 then ResetAutoHideTimer() end
-		if (allSettings.AutoHideWindow[1] and os.time() - fcw[1].autoHideTime > allSettings.AutoHideTimeMax) then
-			if fcw[1].autoHideFadeTime == 0 then fcw[1].autoHideFadeTime = os.clock() end
-			fcw[1].autoHideFade = (os.clock()-fcw[1].autoHideFadeTime)/0.135
-			if fcw[1].autoHideFade > 1 then fcw[1].autoHideFade = 1 end
-		elseif fcw[1].autoHideFade > 0 then
-			if fcw[1].autoHideFade == 1 then fcw[1].autoHideFadeTime = os.clock() fcw[1].autoHideFade = 0.99 end
-			fcw[1].autoHideFade = 0.99-((os.clock()-fcw[1].autoHideFadeTime)/0.07)
-			if fcw[1].autoHideFade < 0 then fcw[1].autoHideFade = 0 end
-		else
-			fcw[1].autoHideFadeTime = 0
-			fcw[1].autoHideFade = 0
+		if os.clock() - fcw[1].autoHideCheckCD > 0.04 then
+			fcw[1].autoHideCheckCD = os.clock()
+			if (allSettings.AutoHideWindow[1] and os.time() - fcw[1].autoHideTime > allSettings.AutoHideTimeMax) then
+				if fcw[1].autoHideFadeTime == 0 then fcw[1].autoHideFadeTime = os.clock() end
+				fcw[1].autoHideFade = (os.clock()-fcw[1].autoHideFadeTime)/0.35
+				if fcw[1].autoHideFade > 1 then fcw[1].autoHideFade = 1 end
+			elseif fcw[1].autoHideFade > 0 then
+				if fcw[1].autoHideFade == 1 then fcw[1].autoHideFadeTime = os.clock() fcw[1].autoHideFade = 0.99 end
+				fcw[1].autoHideFade = 0.99-((os.clock()-fcw[1].autoHideFadeTime)/0.15)
+				if fcw[1].autoHideFade < 0 then fcw[1].autoHideFade = 0 end
+			else
+				fcw[1].autoHideFadeTime = 0
+				fcw[1].autoHideFade = 0
+				for C_i = 1, allSettings.ChatLines do
+					fo_Chat[1][C_i]:set_opacity(1)
+					fo_Aux[1][C_i]:set_opacity(1)
+					fo_Chat[2][C_i]:set_opacity(1)
+					fo_Aux[2][C_i]:set_opacity(1)
+				end
+			end
 		end
-		--Debug(tostring(fcw[1].autoHideFadeTime),1,false)
+		--Debug(tostring(fcw[1].autoHideFade),1,false)
 		
 		if (not uiw.LegacyChatOpen and not fcw[1].HideChat and not fcw[1].Closing and fcw[1].autoHideFade ~= 1) then
-			ro_RectBG[1]:set_fill_color(bit.band(allSettings.rectSettings.fill_color -(fcw[1].autoHideFade * allSettings.rectSettings.fill_color), 0xFF000000));
+			
+			if fcw[1].autoHideFade > 0 then
+				ro_RectBG[1]:set_fill_color(bit.band(allSettings.rectSettings.fill_color -(fcw[1].autoHideFade * allSettings.rectSettings.fill_color), 0xFF000000));
+				for C_i = 1, allSettings.ChatLines do
+					fo_Chat[1][C_i]:set_opacity(math.max(1-fcw[1].autoHideFade,0))
+					fo_Aux[1][C_i]:set_opacity(math.max(1-fcw[1].autoHideFade,0))
+				end
+			end
 			
 			--fcw[1].BG_W = allSettings.fontSettings.font_height*allSettings.ChatLines*fcw[1].BGScale*2;
 			
@@ -1846,6 +1864,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 					imguiWrap.BeginChild('leftpane', { ((setsizex*3.8/3.9)-(12*(1-(setsizex*3.8/1920)))-3)*0.4,setsizey*2.7/3-60 }, true);
 
 					local keys = {}
+					local tmpcolor = {}
 					for key in pairs(allSettings.colors) do
 						table.insert(keys, key)
 					end
@@ -1853,7 +1872,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 					local skip = {'combat','combatspell','cexi'}
 					for _, key in ipairs(keys) do
 						if not utils.FindInStringTable(key, skip, 0) then
-							AddSetColor(key, allSettings.colors[key])
+							AddSetColor(key, allSettings.colors[key], tmpcolor)
 						end
 					end
 
@@ -1868,7 +1887,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 					imgui.Separator();
 					--AddTooltip('Pick a color on the color picker, then click the arrow buttons on the left pane to assignt the color to the desired chat mode.',0)
 					imgui.TextWrapped('Pick a color and click an arrow button on the left pane to assign it.')
+					if tmpcolor[1] then set_PickedColor = utils.cloneTable(tmpcolor[1]) end
 					if imgui.ColorPicker3('Preview', set_PickedColor) then
+						
 					end
 				
 					imgui.EndChild();
@@ -2589,9 +2610,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 							--fcw[1].ChatShift = allSettings.fontSettings.font_height;
 							b_ChatBufferIdx[1] = b_ChatBufferIdx[1]+1;
 						end
-						fcw[1].OutlineColor = 0xFF000000;
-						fo_Aux[1][fcw[1].ChatHead]:set_outline_color(0xFF000000);
-						fo_Chat[1][fcw[1].ChatHead]:set_outline_color(0xFF000000);
+						--fcw[1].OutlineColor = 0xFF000000;
+						--fo_Aux[1][fcw[1].ChatHead]:set_outline_color(0xFF000000);
+						--fo_Chat[1][fcw[1].ChatHead]:set_outline_color(0xFF000000);
 						if b_ChatBufferIdx[1] == b_ChatBufferN[1] then
 							fcw[1].ChatShift = allSettings.fontSettings.font_height;
 						end
@@ -2664,8 +2685,13 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			if allSettings.SelectedTab2 == 'All' and allSettings.HideCombatFromAll[1] then b_ChatBufferN[2]=b_ChatBufferN_AllAlt;  end
 			
 			if (not uiw.LegacyChatOpen and not fcw[1].HideChat and not fcw[1].Closing and fcw[1].autoHideFade ~= 1) then
-				
-				ro_RectBG[2]:set_fill_color(bit.band(allSettings.rectSettings.fill_color -(fcw[1].autoHideFade * allSettings.rectSettings.fill_color), 0xFF000000));
+				if fcw[1].autoHideFade > 0 then
+					ro_RectBG[2]:set_fill_color(bit.band(allSettings.rectSettings.fill_color -(fcw[1].autoHideFade * allSettings.rectSettings.fill_color), 0xFF000000));
+					for C_i = 1, allSettings.ChatLines do
+						fo_Chat[2][C_i]:set_opacity(math.max(1-fcw[1].autoHideFade,0))
+						fo_Aux[2][C_i]:set_opacity(math.max(1-fcw[1].autoHideFade,0))
+					end
+				end
 				
 				imgui.SetNextWindowSize({ fcw[2].BG_W, ro_RectBG[2].settings.height+16 }, ImGuiCond_Once);
 				imgui.SetNextWindowSizeConstraints({ fcw[2].BG_W, ro_RectBG[2].settings.height+16 }, { FLT_MAX, FLT_MAX, }, ImGuiCond_Once);
@@ -3059,9 +3085,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 								--fcw[2].ChatShiftScale_CarryOver = 0;
 								b_ChatBufferIdx[2] = b_ChatBufferIdx[2]+1;
 							end
-							fcw[2].OutlineColor = 0xFF000000;
-							fo_Aux[2][fcw[2].ChatHead]:set_outline_color(0xFF000000);
-							fo_Chat[2][fcw[2].ChatHead]:set_outline_color(0xFF000000);
+							--fcw[2].OutlineColor = 0xFF000000;
+							--fo_Aux[2][fcw[2].ChatHead]:set_outline_color(0xFF000000);
+							--fo_Chat[2][fcw[2].ChatHead]:set_outline_color(0xFF000000);
 							if b_ChatBufferIdx[2] == b_ChatBufferN[2] then
 								 fcw[2].ChatShift = allSettings.fontSettings.font_height
 							end
@@ -3540,6 +3566,7 @@ ashita.events.register('load', 'load_cb', function ()
 		
 		table.insert(fo_Chat[1], gdi:create_object(allSettings.fontSettings, false));
 		table.insert(fo_Aux[1], gdi:create_object(allSettings.fontSettings, false));
+		
 		--fo_Aux[1][L_i]:set_font_alignment(gdi.Alignment.Right);
 		--fo_Aux[1][L_i]:set_box_width(dsize.x);
 		--fo_Aux[1][utils.GetTableLen(fo_Aux[1])]:set_visible(true);
@@ -4471,57 +4498,50 @@ function PositionLines(fo_id)
 			local isLastLine = L_i+1 == fcwFoId.ChatHead or L_i+1-allSettings.ChatLines == fcwFoId.ChatHead;
 			
 			--
-			if 	isLastLine and fcwFoId.ChatShift < allSettings.fontSettings.font_height
-				--and fcw[fo_id].ChatShift > 0
-				--- move this below vvv
-				--and bit.rshift(fo_Chat[fo_id][L_i].settings.font_color, 24) > (bit.rshift(decr*bit.tobit(multi),24)+thresh
-			then
-			------------------------------------------------------------------------
-				-- if (os.clock()-fcw[fo_id].OsClockLastFade > 0.04) then
-					-- local decr = (fcw[fo_id].ChatShiftScale-(30*(fcw[fo_id].ChatShiftScale/fcw[fo_id].ChatShiftScale_Min-1)))/fcw[fo_id].ChatShiftScale_Min*0x1D;
-					-- if fo_Chat[fo_id][L_i].settings.font_color~= nil then
-						-- local alpha = math.max(bit.rshift(fo_Chat[fo_id][L_i].settings.font_color, 24)-decr,0x00)
-						-- fo_Chat[fo_id][L_i]:set_font_color(bit.bor(bit.lshift(alpha, 24),bit.band(fo_Chat[fo_id][L_i].settings.font_color,0x00FFFFFF)));
-						-- fo_id][L_i].settings.font_color,0x00FFFFFF)));
-						-- alpha = math.max(bit.rshift(fcw[fo_id].OutlineColor, 24)-decr,0x02)
-						-- fcw[fo_id].OutlineColor = bit.lshift(alpha, 24)
-						-- fo_Chat[fo_id][L_i]:set_outline_color(fcw[fo_id].OutlineColor);
-						-- fo_Aux[fo_id][L_i]:set_outline_color(fcw[fo_id].OutlineColor);
-					-- end
-					-- fcw[fo_id].OsClockLastFade = os.clock();
-				-- end
-				
-				 -- Cache fcw[fo_id] to avoid repeated table lookup
-				  -- Cache fo_Chat[fo_id][L_i] to avoid repeated table lookup
-				
-				-- Check if the clock difference is greater than 0.05
-				if (os.clock() - fcwFoId.OsClockLastFade > 0.04) then
-					
-					-- Cache values to simplify the formula
+			
+
+			if 	isLastLine and fcwFoId.ChatShift < allSettings.fontSettings.font_height then
+				--if true or (os.clock() - fcwFoId.OsClockLastFade > 0.03) then
 					local scale = fcwFoId.ChatShiftScale
 					local scaleMin = fcwFoId.ChatShiftScale_Min
-					local decr = (scale - (30 * ((scale / scaleMin) - 1))) / scaleMin * 0x1D
+					--local opacity = (scale - (((scale / scaleMin) - 1))) / scaleMin
+					local opacity = (fcwFoId.ChatShift/allSettings.fontSettings.font_height)
+					
+					--Debug(tostring((scale-scaleMin)/9.6), 1, false)
+					--Debug(tostring(1-(fcwFoId.ChatShift/allSettings.fontSettings.font_height)), 1, false)
+					
+					chatLi:set_opacity(opacity)
+					auxLi:set_opacity(opacity)
+					
+					--fcwFoId.OsClockLastFade = os.clock()
+				--end
+			else
+				chatLi:set_opacity(1)
+				auxLi:set_opacity(1)
+			end	
+			
+			
+			-- -- Cache values to simplify the formula
+					-- local scale = fcwFoId.ChatShiftScale
+					-- local scaleMin = fcwFoId.ChatShiftScale_Min
+					-- local decr = (scale - (30 * ((scale / scaleMin) - 1))) / scaleMin * 0x1D
 
-					-- Check if font color is not nil
-					if chatLi.settings.font_color ~= nil then
-						local alpha = bit.lshift(math.max(bit.rshift(chatLi.settings.font_color, 24)-decr,0x02), 24)
-						chatLi:set_font_color(bit.bor(alpha,bit.band(chatLi.settings.font_color,0x00FFFFFF)));
+					-- -- Check if font color is not nil
+					-- if chatLi.settings.font_color ~= nil then
+						-- local alpha = bit.lshift(math.max(bit.rshift(chatLi.settings.font_color, 24)-decr,0x02), 24)
+						-- chatLi:set_font_color(bit.bor(alpha,bit.band(chatLi.settings.font_color,0x00FFFFFF)));
 						
-						local alpha2 = math.max(bit.rshift(fcwFoId.OutlineColor, 24)-decr,0x02)
-						fcwFoId.OutlineColor = bit.lshift(alpha2, 24)
-						chatLi:set_outline_color(fcwFoId.OutlineColor);
+						-- local alpha2 = math.max(bit.rshift(fcwFoId.OutlineColor, 24)-decr,0x02)
+						-- fcwFoId.OutlineColor = bit.lshift(alpha2, 24)
+						-- chatLi:set_outline_color(fcwFoId.OutlineColor);
 						
-						if #auxLi.settings.text > 0 then
-							auxLi:set_font_color(bit.bor(alpha,bit.band(auxLi.settings.font_color,0x00FFFFFF)));
-							auxLi:set_outline_color(fcwFoId.OutlineColor);
-						end
-					end
+						-- if #auxLi.settings.text > 0 then
+							-- auxLi:set_font_color(bit.bor(alpha,bit.band(auxLi.settings.font_color,0x00FFFFFF)));
+							-- auxLi:set_outline_color(fcwFoId.OutlineColor);
+						-- end
+					-- end
 
 					-- Update the OsClockLastFade to the current time
-					fcwFoId.OsClockLastFade = os.clock()
-				end
-			end
-			
 			
 			
 			chatLi:set_position_y( fcwFoId.ChatShift + fcwFoId.Anchor_Y - (allSettings.fontSettings.font_height*(C_i)));
@@ -5871,11 +5891,13 @@ function AddWarning(message, y, flag, x, title)
 
 end
 
-function AddSetColor(buttonname,colorhex)
+function AddSetColor(buttonname,colorhex, tmpcolor)
 	local a, r, g, b = utils.hexToRGBA(tostring(bit.tohex(colorhex[1])));
 	local colortable = T{r/255,g/255,b/255,a/255};
 	--utils.rgbaToHexNum
-	imgui.ColorButton(buttonname, colortable,ImGuiColorEditFlags_NoAlpha,{24,24})			
+	if imgui.ColorButton(buttonname, colortable,ImGuiColorEditFlags_NoAlpha,{24,24}) then
+		tmpcolor[1] = colortable
+	end	
 	imgui.SameLine();
 	if imgui.ArrowButton('Set'..buttonname, ImGuiDir_Left) then
 		colortable[1] = set_PickedColor[1]
@@ -7361,23 +7383,26 @@ function DrawInfo(text)
 	end
 	--updated = true
 
-
+	--updated = true
 	local idx = 1
 	for i = 1, #info do
 		if idx > 4 then break end
-		if info[i] and info[i] then
+		--if info[i] and info[i] then
+		if info[i] then
 		
 			local item
 			local ability
 			local spell
 			--if fcw[1].itemIcons[idx] and fcw[1].itemIcons[idx][3] and info[i] == fcw[1].itemIcons[idx][3] then	
-			if not updated then	
-				if fcw[1].itemIcons[idx][5] == 1 then
-					item = fcw[1].itemIcons[idx][4]
-				elseif fcw[1].itemIcons[idx][5] == 2 then
-					ability = fcw[1].itemIcons[idx][4]
-				elseif fcw[1].itemIcons[idx][5] == 3 then
-					spell = fcw[1].itemIcons[idx][4]
+			if not updated then
+				if info[i] == fcw[1].itemIcons[idx][3] then
+					if fcw[1].itemIcons[idx][5] == 1 then
+						item = fcw[1].itemIcons[idx][4]
+					elseif fcw[1].itemIcons[idx][5] == 2 then
+						ability = fcw[1].itemIcons[idx][4]
+					elseif fcw[1].itemIcons[idx][5] == 3 then
+						spell = fcw[1].itemIcons[idx][4]
+					end
 				end
 			else
 				local RM = AshitaCore:GetResourceManager()
@@ -7397,7 +7422,7 @@ function DrawInfo(text)
 				--idx = idx + 1
 				--if fcw[1].itemIcons[idx][1] and item.Id ~= fcw[1].itemIcons[idx][1] then 
 				--if not fcw[1].itemTexture[idx] then
-				fcw[1].itemIcons[idx][1] = item.Id
+				--fcw[1].itemIcons[idx][1] = item.Id
 				fcw[1].itemIcons[idx][3] = info[i]
 				fcw[1].itemIcons[idx][4] = item
 				fcw[1].itemIcons[idx][5] = 1
@@ -7436,12 +7461,12 @@ function DrawInfo(text)
 					else--if item.Type == 1 or item.Type == 7 then
 						inf = inf..desc
 					end
-					fcw[1].itemIcons[idx][2] = inf
+					--fcw[1].itemIcons[idx][2] = inf
 					
 					--local textW, TextH = imgui.CalcTextSize(info[i]..fcw[1].itemIcons[idx][2])
 					--H = math.max(H, TextH * ((textW/((fcw[1].BG_W/4)-16))+2))
 					H = math.max(H, ((imgui.GetFontSize()*1)*(utils.CalcRows(inf, (fcw[1].BG_W/4)-32,imgui.CalcTextSize('H'))+1)+28+40))--+(#flags>0 and 1 or 0)
-					table.insert(drawcalls, {idx, info[i], fcw[1].itemIcons[idx][2], fcw[1].itemTexture[idx][2]})
+					table.insert(drawcalls, {idx, info[i], inf, fcw[1].itemTexture[idx][2]})
 					--DrawInfoWin(idx,info[i],fcw[1].itemIcons[idx][2], fcw[1].itemTexture[idx][2])
 					idx = idx + 1
 				end
