@@ -5370,7 +5370,7 @@ function CombatText(msg, chn)
 		--Rosabelle uses Animated Flourish on the Tchakka.65
 		Ext, A = msg:match('^(%d*) of (.+)\'s shadows.*$')
 		if A and Ext then
-			
+			if (A == fcw[1].PlayerName) then par_DamageGot = true; end;
 			Ext = '-'..Ext
 			if utils.StringFindTable(A, par_party_names) then
 				par_actor1 = A;
@@ -7359,7 +7359,7 @@ function DrawInfo(text)
 		end
 		update_idx = update_idx + 1
 	end
-	updated = true
+	--updated = true
 
 
 	local idx = 1
