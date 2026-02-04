@@ -23,9 +23,6 @@ local http = require("socket.http")
 local imguiWrap = require('imguiWrap')
 --local emojis = require('emojis')
 
--- --dofile(addon.path.."\\imguiwrap.lua")
-
-
 local uiw = T{
 		UpperMenuPTR,
 		MenuDescPTR,
@@ -72,6 +69,7 @@ local mvc_targetposX = 0;
 
 local fcw = T{
 	T{	
+		BufferBusy = false,
 		WasRendered = false,
 		itemInfo = {},
 		itemIcons = T{{},{},{},{}},
@@ -290,6 +288,8 @@ local dw_frameID = 1
 local dw_addr = 0
 
 -- Text parsing variables --
+local par_tabmode
+local par_checkAgain = {0, ''}
 local par_emojiChannel = 5;
 local par_allowed = {0, 0};
 local par_dumping = false;
@@ -360,6 +360,8 @@ local ro_BigMode;
 local fo_BigMode;
 
 local allSettings = T{
+	UseHalfLength = T{false},
+	PreciseTS = T{false},
 	BigModeWarning = T{false},
 	MoveChatATMenu = T{true},
 	CustomFilters = T{false},
@@ -477,9 +479,13 @@ local defaultColors = {
 	learn			= {0xFF5C71FF},
 	found			= {0xFFE5FF3D},
 	ability			= {0xFFF3A6FF},
+	--you				= {0xFF6BD5FF},
+	you				= {0xFF00FFC1},
 	actor1			= {0xFF6BD5FF},
 	actor2			= {0xFFF7CF05},
 	helm			= {0xFFE5FF3D},
+	useitem			= {0xFFF58FFF},
+	negative		= {0xFFFF5640},
 	dmgdone			= {0xFF91FF47, 0xFF91FFF0},
 	dmggot			= {0xFFFA4343, 0xFFFFA269},
 	spelldmgdone 	= {0xFFADFF33, 0xFF5EE0DE},
@@ -511,9 +517,12 @@ local colorDesc =
 	spelldmggot		= {'Spell Dmg Taken', 'Highlights spell damage taken'},
 	cexi			= {'CEXI', 'CEXI content messages'},
 	ability			= {'Ability/Spell', 'Highlights an ability or spell used by an Entity'},
+	you				= {'You', 'Color highlighting youin combat text.'},
 	actor1			= {'Friend Entity', 'Color highlighting the friendly entity in combat text.\n(i.e. the player, party members, etc.'},
 	actor2			= {'Foe Entity', 'Color highlighting the foe entity in combat text.\n(i.e. a monster, boss, etc.'},
 	helm			= {'HELM result', 'Color highlighting the yelded item from an HELM action'},
+	useitem			= {'Item Use', 'Color highlighting the use of an item'},
+	negative		= {'Negative Effect', 'Color that notifies a potential negative action (e.g. throwing items away)'},
 }
 
 ashita.events.register('d3d_present', 'present_cb', function ()
@@ -878,10 +887,12 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
 	-- Settings chat buffers according to the active tab --
 		if (tab_NextTab ~= allSettings.SelectedTab) then
-			
+			fcw[1].BufferBusy = true;
+			if #fo_Chat[3] > 0 then ResetScrolling(3, fcw[3].ChatLines) end
 			ChangeTab(1, tab_NextTab);
 			b_ChatBufferN[1] = SetBufferN(allSettings.SelectedTab);
 			ResetScrolling(1);
+			
 			--GoToLine()
 		else
 			b_ChatBufferN[1] = SetBufferN(allSettings.SelectedTab);
@@ -907,27 +918,22 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			if (os.time() - fcw[1].autoHideTime > allSettings.AutoHideTimeMax) then
 				if fcw[1].autoHideFadeTime == 0 then fcw[1].autoHideFadeTime = os.clock() end
 				fcw[1].autoHideFade = (os.clock()-fcw[1].autoHideFadeTime)/0.35
-				if fcw[1].autoHideFade > 1 then fcw[1].autoHideFade = 1 end
+				if fcw[1].autoHideFade > 1 then fcw[1].autoHideFade = 10 end
 			elseif fcw[1].autoHideFade > 0 then
-				if fcw[1].autoHideFade >= 1 then fcw[1].autoHideFadeTime = os.clock() fcw[1].autoHideFade = 0.99 end
-				fcw[1].autoHideFade = 0.99-((os.clock()-fcw[1].autoHideFadeTime)/0.15)
-				if fcw[1].autoHideFade < 0 then
-					fcw[1].autoHideFade = 0
-					fcw[1].autoHideFadeTime = 0
-					fcw[1].autoHideFade = 0
+				if fcw[1].autoHideFade == 10 then
+					fcw[1].autoHideFadeTime = os.clock()
+					fcw[1].autoHideFade = 1
 					
+				else
+					
+					fcw[1].autoHideFade = 1-((os.clock()-fcw[1].autoHideFadeTime)/0.1)
+					if fcw[1].autoHideFade <= 0 then
+						fcw[1].autoHideFade = 0
+						fcw[1].autoHideFadeTime = 0
+						fcw[1].autoHideFade = 0
+						
+					end
 				end
-			-- else
-				-- fcw[1].autoHideFadeTime = 0
-				-- fcw[1].autoHideFade = 0
-				-- for C_i = 1, allSettings.ChatLines do
-					-- fo_Chat[1][C_i]:set_opacity(1)
-					-- fo_Aux[1][C_i]:set_opacity(1)
-					-- if allSettings.SecondChat[1] then
-						-- fo_Chat[2][C_i]:set_opacity(1)
-						-- fo_Aux[2][C_i]:set_opacity(1)
-					-- end
-				-- end
 			end
 		end
 		--Debug(tostring(fcw[1].autoHideFade),1,false)
@@ -943,6 +949,14 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			end
 			ShowBigMode(true)
 			--print(fcw[3].BigModePrev)
+			ResetScrolling(1)
+			ro_Scroll[1]:set_visible(false)
+			fo_Bkw[1]:set_visible(false)
+			if allSettings.SecondChat[1] then
+				ResetScrolling(2)
+				fo_Bkw[2]:set_visible(false)
+				ro_Scroll[2]:set_visible(false)
+			end
 			if #fo_Chat[3]>0 and not fcw[3].BigModePrev then ResetScrolling(3, fcw[3].ChatLines); end
 			DrawBigMode()
 			fcw[3].BigModePrev = true
@@ -974,14 +988,16 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			-- fcw[2].PositionLinesRequest = {true,true}
 		end
 		
-		if (not uiw.LegacyChatOpen and not fcw[1].HideChat and not fcw[1].Closing and fcw[1].autoHideFade ~= 1 and not fcw[3].BigMode) then
+		if (not uiw.LegacyChatOpen and not fcw[1].HideChat and not fcw[1].Closing and fcw[1].autoHideFade < 1 and not fcw[3].BigMode) then
 			
 			--if fcw[1].autoHideFade > 0 then
 				local updateColor = bit.band(allSettings.rectSettings.fill_color -(fcw[1].autoHideFade * allSettings.rectSettings.fill_color), 0xFF000000)
-				if ro_RectBG[1].fill_color ~= updateColor then
-					ro_RectBG[1]:set_fill_color(updateColor);
+				if ro_RectBG[1].settings.fill_color ~= updateColor then
+					--Debug(bit.tohex(updateColor),1,true)
+					ro_RectBG[1]:set_fill_color(math.min(math.max(updateColor,0x00000000)),0xFF000000);
 					SetChatOpacity(math.max(1-fcw[1].autoHideFade,0),1)
 				end
+				
 				-- for C_i = 1, allSettings.ChatLines do
 					-- fo_Chat[1][C_i]:set_opacity(math.max(1-fcw[1].autoHideFade,0))
 					-- fo_Aux[1][C_i]:set_opacity(math.max(1-fcw[1].autoHideFade,0))
@@ -1190,9 +1206,13 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 				while IDi <= math.max(IDe-1,0) do
 					--copyBufferText = b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi] ~= '[link]' and copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi] or copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].text[copyBufferIdx+IDi]
 					--
-					copyBufferText = (' '..copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].text[copyBufferIdx+IDi]):trimex()
-					if b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi] ~= '[link]' then
-						copyBufferText = copyBufferText..' '..b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi]
+					if copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].text[copyBufferIdx+IDi] then
+						copyBufferText = (' '..copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].text[copyBufferIdx+IDi]):trimex()
+						if b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi] ~= '[link]' then
+							copyBufferText = copyBufferText..' '..b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi]
+						end
+					else
+						break
 					end
 					IDi = IDi + 1;
 				end
@@ -1227,7 +1247,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
 			if (mouseX > fcw[1].Anchor_X and mouseX < fcw[1].Anchor_X+fcw[1].BG_W and
 			mouseY > positionStartY+scrollOffset and mouseY < positionStartY+scrollOffset+allSettings.fontSettings.font_height*(allSettings.ChatLines+1)
-			and imguiWrap.IsWindowHovered(ImGuiHoveredFlags_RectOnly) and fcw[1].ChatShift == allSettings.fontSettings.font_height
+			and imguiWrap.IsWindowHovered(ImGuiHoveredFlags_RectOnly) and not fcw[1].BufferBusy
 			)
 			then
 				if (
@@ -1408,10 +1428,14 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 				--imgui.SetNextWindowSize({ tabsW+tabsH*2, tabsH })
 				imgui.PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0);
 				
+				local button_length = {tabsW/#tab_Tabs-(tabsH-8), 0}
+				local length_ref = allSettings.fontSettings.font_height*6
+				if button_length[1] > length_ref then button_length[1] = length_ref; button_length[2] = tabsW/#tab_Tabs-(tabsH-8) - length_ref end
+				
 				for T_i = 1, utils.GetTableLen(tab_Tabs) do
 				if (tab_Tabs[T_i] == allSettings.SelectedTab) then
-						imgui.SetCursorPos({0,0});
-						if imgui.Button(tab_Tabs[T_i]:gsub('Alt','##Alt'),{tabsW/#tab_Tabs-(tabsH-8),tabsH-6}) then
+						imgui.SetCursorPos({button_length[2],0});
+						if imgui.Button(tab_Tabs[T_i]:gsub('Alt','##Alt'),{button_length[1],tabsH-6}) then
 							if T_i+1 <= #tab_Tabs then tab_NextTab = tab_Tabs[T_i+1]; else  tab_NextTab = tab_Tabs[1] end
 						end
 					end
@@ -1447,7 +1471,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			if fcw[1].GuideMeOpened[1] and not fcw[1].GuideMeClosedTmp then
 				
 				if fcw[1].isHiddenGUI then utils.ImguiVis(true) end
-				local GuideMeW = fcw[1].BG_W;
+				local GuideMeW = allSettings.UseHalfLength[1] and fcw[1].BG_W/2 or fcw[1].BG_W;
 				local GuideMeH = fcw[1].BG_H+100;
 				if (fcw[1].GuideMeDocked) then
 					windowFlags = fcw[1].windowFlagsGuideMeDocked
@@ -1604,7 +1628,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			if fcw[1].NotepadOpened[1] and not fcw[1].NotepadClosedTmp then
 				
 				if fcw[1].isHiddenGUI then utils.ImguiVis(true) end
-				local GuideMeW = fcw[1].BG_W;
+				local GuideMeW = allSettings.UseHalfLength[1] and fcw[1].BG_W/2 or fcw[1].BG_W;
 				local GuideMeH = fcw[1].BG_H+100;
 				if (fcw[1].NotepadDocked) then
 					windowFlags = fcw[1].windowFlagsGuideMeDocked
@@ -1934,6 +1958,12 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 					end
 					imgui.PopItemWidth();
 					imgui.Dummy({0,5});
+					if (imgui.Checkbox('Use half window length for docked UI elements',{allSettings.UseHalfLength[1]})) then 
+						allSettings.UseHalfLength[1] = not allSettings.UseHalfLength[1];
+						SaveSettings();
+					end
+					AddTooltip('Only uses half the length of the chat window as reference for UI elements docked to chat window.',4)
+					imgui.Dummy({0,5});
 					if (imgui.Checkbox('Prevent obstructing FFXI UI',{allSettings.EnabledChatMove[1]})) then 
 						allSettings.EnabledChatMove[1] = not allSettings.EnabledChatMove[1];
 					end
@@ -2199,6 +2229,15 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 					imgui.Text('/fancychat manual');
 					imgui.Dummy({23,0}); imgui.SameLine();
 					imgui.Text('[Opens the addon Manual]');
+					imgui.Dummy({0,5});imgui.Dummy({3,0}); imgui.SameLine();
+					imgui.Text('/fancychat tod');
+					imgui.Dummy({23,0}); imgui.SameLine();
+					imgui.Text('[Toggles TOD timestamps]');
+					imgui.Dummy({0,5});imgui.Dummy({3,0}); imgui.SameLine();
+					imgui.Text('/fancychat ts');
+					imgui.Dummy({23,0}); imgui.SameLine();
+					imgui.Text('[Prints a timestamp of the current time]');
+					
 					-- imgui.Dummy({0,5});imgui.Dummy({3,0}); imgui.SameLine();
 					-- imgui.Text('/fancychat dumpchat');
 					-- imgui.Dummy({23,0}); imgui.SameLine();
@@ -2369,6 +2408,13 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 						end
 					imgui.EndCombo();
 					end
+					imgui.Dummy({0,5});
+					imgui.Dummy({5,0}); imgui.SameLine();
+					if (imgui.Checkbox('Precise TOD Timestamps',{allSettings.PreciseTS[1]})) then 
+						allSettings.PreciseTS[1] = not allSettings.PreciseTS[1];
+						SaveSettings();
+					end
+					AddTooltip('Shows timestamps, precise to the second, next to \'defeat mob\' messages.',4)
 					imgui.Dummy({0,5});
 					imgui.Dummy({5,0}); imgui.SameLine();
 					if (imgui.Checkbox('Incoming /tell notifications',{allSettings.tellNotification[1]})) then 
@@ -2697,7 +2743,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			set_ChatLines = allSettings.ChatLines;
 		end
 		
-		if not fcw[1].HideChat and not fcw[1].Closing and not fcw[1].ProcessingText and fcw[1].autoHideFade ~= 1 then 
+		if not fcw[1].HideChat and not fcw[1].Closing and not fcw[1].ProcessingText and fcw[1].autoHideFade < 1 then 
 		-- Updating chat lines status (must be done even if chat is not displayed) ?? --and b_ChatBufferIdx[1] < b_ChatBufferN[1]
 			if fcw[1].PrevHideChat ~= fcw[1].HideChat and fcw[1].PrevHideChat  then  ResetScrolling(1) fcw[1].RequestAuxFix = true end;
 			
@@ -2819,6 +2865,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 		if allSettings.SecondChat[1] then
 			
 			if (tab_NextTab2 ~= allSettings.SelectedTab2 ) then
+				fcw[1].BufferBusy = true;
 				ChangeTab(2, tab_NextTab2);
 				b_ChatBufferN[2] = SetBufferN(allSettings.SelectedTab2);
 				ResetScrolling(2);
@@ -2830,10 +2877,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			--end
 			if allSettings.SelectedTab2 == 'All' and allSettings.HideCombatFromAll[1] then b_ChatBufferN[2]=b_ChatBufferN_AllAlt;  end
 			
-			if (not uiw.LegacyChatOpen and not fcw[1].HideChat and not fcw[1].Closing and fcw[1].autoHideFade ~= 1 and not fcw[3].BigMode) then
+			if (not uiw.LegacyChatOpen and not fcw[1].HideChat and not fcw[1].Closing and fcw[1].autoHideFade < 1 and not fcw[3].BigMode) then
 				local updateColor = bit.band(allSettings.rectSettings.fill_color -(fcw[1].autoHideFade * allSettings.rectSettings.fill_color), 0xFF000000)
-				if ro_RectBG[2].fill_color ~= updateColor then
-					ro_RectBG[2]:set_fill_color(updateColor);
+				if ro_RectBG[2].settings.fill_color ~= updateColor then
+					ro_RectBG[2]:set_fill_color(math.min(math.max(updateColor,0x00000000)),0xFF000000);
 					SetChatOpacity(math.max(1-fcw[1].autoHideFade,0),2)
 				end
 				
@@ -3010,9 +3057,13 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 					while IDi <= math.max(IDe-1,0) do
 					--copyBufferText = b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi] ~= '[link]' and copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi] or copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].text[copyBufferIdx+IDi]
 					
-					copyBufferText = (' '..copyBufferText..b_ChatBuffer[b_ChatBufferMode[2]][2].text[copyBufferIdx+IDi]):trimex()
-					if b_ChatBuffer[b_ChatBufferMode[2]][2].auxText[copyBufferIdx+IDi] ~= '[link]' then
-						copyBufferText = copyBufferText..' '..b_ChatBuffer[b_ChatBufferMode[2]][2].auxText[copyBufferIdx+IDi]
+					if b_ChatBuffer[b_ChatBufferMode[2]][2].text[copyBufferIdx+IDi] then
+						copyBufferText = (' '..copyBufferText..b_ChatBuffer[b_ChatBufferMode[2]][2].text[copyBufferIdx+IDi]):trimex()
+						if b_ChatBuffer[b_ChatBufferMode[2]][2].auxText[copyBufferIdx+IDi] ~= '[link]' then
+							copyBufferText = copyBufferText..' '..b_ChatBuffer[b_ChatBufferMode[2]][2].auxText[copyBufferIdx+IDi]
+						end
+					else
+						break
 					end
 					IDi = IDi + 1;
 					end
@@ -3044,7 +3095,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 				--if (mouseX > fcw[1].Anchor_X and mouseX < fcw[1].Anchor_X+fcw[1].BG_W and
 				if (mouseX > fcw[2].Anchor_X and mouseX < fcw[2].Anchor_X+fcw[2].BG_W and
 				mouseY > positionStartY+scrollOffset and mouseY < positionStartY+scrollOffset+allSettings.fontSettings.font_height*(allSettings.ChatLines+1)
-				and imguiWrap.IsWindowHovered(ImGuiHoveredFlags_RectOnly) and fcw[2].ChatShift == allSettings.fontSettings.font_height
+				and imguiWrap.IsWindowHovered(ImGuiHoveredFlags_RectOnly) and not fcw[1].BufferBusy
 				)
 				then
 					if (
@@ -3150,10 +3201,15 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 				else
 					imgui.PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0);
 				
+					button_length = {tabsW/#tab_Tabs-(tabsH-8), 0}
+					length_ref = allSettings.fontSettings.font_height*6
+					if button_length[1] > length_ref then button_length[1] = length_ref; button_length[2] = tabsW/#tab_Tabs-(tabsH-8) - length_ref end
+					
 					for T_i = 1, utils.GetTableLen(tab_Tabs) do
-						if (tab_Tabs[T_i] == allSettings.SelectedTab2) then
-							imgui.SetCursorPos({0,0});
-							if imgui.Button(tab_Tabs[T_i]:gsub('Alt','##Alt'),{tabsW/#tab_Tabs,tabsH-6}) then
+					if (tab_Tabs[T_i] == allSettings.SelectedTab) then
+							imgui.SetCursorPos({button_length[2],0});
+							if imgui.Button(tab_Tabs[T_i]:gsub('Alt','##Alt'),{button_length[1],tabsH-6}) then
+							--if imgui.Button(tab_Tabs[T_i]:gsub('Alt','##Alt'),{tabsW/#tab_Tabs,tabsH-6}) then
 								if T_i+1 <= #tab_Tabs then tab_NextTab2 = tab_Tabs[T_i+1]; else  tab_NextTab2 = tab_Tabs[1] end
 							end
 						end
@@ -3332,7 +3388,7 @@ ashita.events.register('d3d_endscene', 'd3d_endscene_callback1', function (isRen
 
     -- isRenderingBackBuffer is a flag that will be true when the game is currently rendering to the back buffer.
 	--and fcw[1].LoggedLobby ~= 1
-	if (fcw[1].PlayerName ~= '---' and fcw[1].LoggedLobby ~= 1 and not fcw[1].Zoning and fcw[1].LoggedIn and #settings.name > 0 and fcw[1].RenderFOs and not fcw[1].HideChat and not uiw.LegacyChatOpen and not fcw[1].Closing and fcw[1].autoHideFade ~= 1) then
+	if (fcw[1].PlayerName ~= '---' and fcw[1].LoggedLobby ~= 1 and not fcw[1].Zoning and fcw[1].LoggedIn and #settings.name > 0 and fcw[1].RenderFOs and not fcw[1].HideChat and not uiw.LegacyChatOpen and not fcw[1].Closing and fcw[1].autoHideFade < 1) then
 		if not fcw[3].BigMode then
 			PositionLines(1);
 		--FixAux(1)
@@ -3414,7 +3470,7 @@ ashita.events.register('d3d_endscene', 'd3d_endscene_callback1', function (isRen
 	-- end
 	-- timeMax = (os.clock()-timeStart)*(fpsFrame/60) > timeMax and (os.clock()-timeStart)*(fpsFrame/60) or timeMax
 	-- Debug(tostring((os.clock()-timeStart)*(fpsFrame/60))..'\n'..tostring(testResult)..'\n'..tostring(fpsFrame), 1, false)
-	
+	fcw[1].BufferBusy = false;
 end);
 
 --ashita.events.register('d3d_beginscene', 'd3d_beginscene_callback1', function (isRenderingBackBuffer)
@@ -3668,6 +3724,8 @@ ashita.events.register('load', 'load_cb', function ()
 
 	--ResetColors();
 	--allSettings.colors = defaultColors;
+	
+	local allSettingsOG = allSettings
 	allSettings.colors = utils.cloneTable(defaultColors)
 	
 	--local dsize = imgui.GetIO().DisplaySize
@@ -3676,12 +3734,16 @@ ashita.events.register('load', 'load_cb', function ()
 	
 	allSettings = settings.load(allSettings, 'allSettings');
 	
+	
+	
 	for k,v in pairs(defaultColors) do
 		if not allSettings.colors[k] then
 			allSettings.colors.k = utils.cloneTable(v)
 			SaveSettings()
 		end
 	end
+	
+	allSerrings = utils.RepairSettings(allSettingsOG, allSettings)
 	
 	ResetAutoHideTimer()
 	set_alertList = utils.stringsplit(allSettings.alertwords, ',')
@@ -3916,6 +3978,7 @@ end);
 -- end
 
 ashita.events.register('unload', 'unload_cb', function ()
+	DumpChat()
 	fcw[1].Closing = true;
 	gdi:destroy_interface();
 	SaveSettings();
@@ -3986,7 +4049,7 @@ end);
 ashita.events.register('command', 'command_cb', function (e)
 
     local args = e.command:args();
-    if (#args == 0 or not args[1]:any('/fancychat')) then
+    if (#args == 0 or (not args[1]:any('/fancychat') and not args[1]:any('/fchat')) ) then
         return;
     end
 	
@@ -4102,8 +4165,9 @@ ashita.events.register('command', 'command_cb', function (e)
 
 		--AshitaCore:GetChatManager():AddChatMessage(5, false, testemoji)
 		
-		--print('Please Read!\n\nWelcome to FancyChat addon!\n\nThis is addon provides a highly customizable and interactive chat replacemante for Final Fantasy XI.\nPlease take your time to check all the settings by either clicking the cog wheel icon at the bottom of the chat window or by typing the command \"/fancychat settings\".\n\nYou can hover with your mouse over the (i) icons to learn more about each functionality. This addon features some advanced options that can include unwanted behaviors for certain players. Therefore, please pay extra attention to the (i) marked in red to learn about important critical information about such features.\n\nFor further help you can check the addon manual accessible from the settings menu or through the command \"/fancychat manual\".\n\nHave fun!')
-		AshitaCore:GetChatManager():AddChatMessage(21,false,'The Puffer Pugil uses Plaguebreath.'..'\10'..'Ryzar takes 345 points of damage.')
+		print('Please Read!\n\nWelcome to FancyChat addon!\n\nThis is addon provides a highly customizable and interactive chat replacemante for Final Fantasy XI.\nPlease take your time to check all the settings by either clicking the cog wheel icon at the bottom of the chat window or by typing the command \"/fancychat settings\".\n\nYou can hover with your mouse over the (i) icons to learn more about each functionality. This addon features some advanced options that can include unwanted behaviors for certain players. Therefore, please pay extra attention to the (i) marked in red to learn about important critical information about such features.\n\nFor further help you can check the addon manual accessible from the settings menu or through the command \"/fancychat manual\".\n\nHave fun!')
+		--AshitaCore:GetChatManager():AddChatMessage(121,false,'\129\159 Quest Completed')
+		--AshitaCore:GetChatManager():AddChatMessage(21,false,' earns a merit point (Total: 4).')
 		return;
 	end
 	if (#args == 2 and args[2] == 'helpdebug') then
@@ -4138,6 +4202,15 @@ ashita.events.register('command', 'command_cb', function (e)
 		if (#args == 2 and args[2] == 'notes') then
 			fcw[1].NotepadOpened[1] = not fcw[1].NotepadOpened[1];
 			if fcw[1].NotepadOpened[1] then fcw[1].GuideMeOpened[1] = false; end
+			return;
+		end
+		if (#args == 2 and args[2] == 'tod') then
+			allSettings.PreciseTS[1] = not allSettings.PreciseTS[1];
+			SaveSettings();
+			return;
+		end
+		if (#args == 2 and args[2] == 'ts') then
+			print('Current Time: '..os.date(par_FormatTS[1], os.time()))
 			return;
 		end
 		
@@ -4208,6 +4281,7 @@ ashita.events.register('key_state', 'key_state_callback1', function (e)
 		end
     end
 	
+	if not fcw[1].BufferBusy then
 	if (allSettings.shortcutTabEnabled[1] and keyptr[allSettings.shortcutTab] ~= 0 and keyptr[allSettings.shortcutTabS] ~= 0 and not fcw[1].Keydown2 and AshitaCore:GetChatManager():IsInputOpen() == 0x00) then
 		local tab_id = utils.FindInTable(tab_Tabs, allSettings.SelectedTab);
 		fcw[1].Keydown2 = true;
@@ -4241,7 +4315,7 @@ ashita.events.register('key_state', 'key_state_callback1', function (e)
 			end
 		end
 	end
-	
+	end
 end);
 
 ashita.events.register('mouse', 'mouse_callback1', function (e)
@@ -4323,6 +4397,7 @@ function DebugWindow()
 		
 		
 		imgui.Text('buff_idx '..tostring(b_ChatBufferIdx[1]));
+		imgui.Text('buff_idx3 '..tostring(b_ChatBufferIdx[3]));
 		imgui.Text('buff_All '..tostring(#b_ChatBuffer[1][2].text)..',N: '..tostring(b_ChatBufferN_All));
 		imgui.Text('buff_AA '..tostring(#b_ChatBuffer[2][2].text)..',N: '..tostring(b_ChatBufferN_AllAlt));
 		imgui.Text('buff_C '..tostring(#b_ChatBuffer[3][2].text)..',N: '..tostring(b_ChatBufferN_Combat));
@@ -4436,6 +4511,7 @@ function Init()
 	fo_BigMode:set_font_color(0xFAD1F4FF)
 	fo_BigMode:set_visible(false)
 	ro_BigMode = gdi:create_rect(allSettings.rectSettings, false);
+	ro_BigMode:set_fill_color(0x00000000)
 		
 	fcw[3].BG_W = allSettings.chatLineMaxL*allSettings.fontSettings.font_height*0.58;
 	fcw[3].BG_H = math.floor(dsize.y*0.8);
@@ -4502,12 +4578,16 @@ function ChangeTab(fo_id, tabName)
 		if (tabName == 'Party') then 		b_ChatBufferMode[fo_id] = 5; return b_ChatBufferN_Party; 		end
 		if (tabName == 'Tell') then 		b_ChatBufferMode[fo_id] = 6; return b_ChatBufferN_Tell; 		end
 		if (tabName == 'Shout') then 		b_ChatBufferMode[fo_id] = 7; return b_ChatBufferN_Shout;		end
-		if (tabName == 'Custom') then		b_ChatBufferMode[fo_id] = 8; return b_ChatBufferN_Custom;			end
+		if (tabName == 'Custom') then		b_ChatBufferMode[fo_id] = 8; return b_ChatBufferN_Custom;		end
 		return b_ChatBufferIdx[fo_id];
 	end)();
-	b_ChatBufferIdx[3] = b_ChatBufferIdx[1]
+
 	--ResetLines(3, fcw[3].ChatLines)
-	if #fo_Chat[3] > 0 then ResetScrolling(3, fcw[3].ChatLines) end
+	if #fo_Chat[3] > 0 then
+		
+		ResetScrolling(3, fcw[3].ChatLines)
+		--b_ChatBufferN[3] = SetBufferN(allSettings.SelectedTab);
+	end
 	-- print(b_ChatBufferIdx[fo_id])
 	-- if tabName == 'All' and allSettings.HideCombatFromAll[1] then print('hello') b_ChatBufferMode[fo_id] = 2; b_ChatBufferIdx[fo_id] = b_ChatBufferN_AllAlt end
 
@@ -4627,6 +4707,8 @@ function GoToLine(fo_id, line, currentIdx, ChatLines)
 end
 
 function ScrollLines(fo_id, message, color, auxMessage, auxColor, mode, ChatLines)
+	if fcw[1].BufferBusy or tab_NextTab ~= allSettings.SelectedTab then return end
+	fcw[1].BufferBusy = true;
 	if not ChatLines then ChatLines = allSettings.ChatLines end
     -- scrollback > 1
 	-- scrollfwd > 0
@@ -4669,6 +4751,7 @@ function ScrollLines(fo_id, message, color, auxMessage, auxColor, mode, ChatLine
 	if (fcw[fo_id].ChatHead > ChatLines) then fcw[fo_id].ChatHead = 1; end 
 	if (fcw[fo_id].ChatHead < 1) then fcw[fo_id].ChatHead = ChatLines; end
 	fcw[fo_id].RequestAuxFix = true;
+	
 	return
 end
 
@@ -4708,6 +4791,7 @@ function GetScrollPoint(fo_id)
 end
 
 function PositionLines(fo_id, ChatLines)
+	fcw[1].BufferBusy = true;
 	local BG = ro_RectBG[fo_id]
 	local oth_id = fo_id
 	if not ChatLines then ChatLines = allSettings.ChatLines else BG = ro_BigMode; oth_id = 1 end
@@ -4820,6 +4904,7 @@ function PositionLines(fo_id, ChatLines)
 	-- if prevChatHead > allSettings.ChatLines then prevChatHead = 1 end
 	-- fo_Chat[fo_id][prevChatHead]:set_opacity(1)
 	-- fo_Aux[fo_id][prevChatHead]:set_opacity(1)
+	
 end
 
 function SetChatOpacity(opacity, fo_id)
@@ -4848,7 +4933,7 @@ function FixAux(fo_id, ChatLines)
 end
 
 function UpdateLines(fo_id, message, color, auxMessage, auxColor)
-	
+	fcw[1].BufferBusy = true;
 	local L_i = fcw[fo_id].ChatHead;
 	for C_i = 1, allSettings.ChatLines-1 do
 		fo_Chat[fo_id][L_i]:set_position_y( fcw[fo_id].Anchor_Y - (allSettings.fontSettings.font_height*(C_i)));
@@ -4873,7 +4958,6 @@ function UpdateLines(fo_id, message, color, auxMessage, auxColor)
 	if (fcw[fo_id].ChatHead < 1) then fcw[fo_id].ChatHead = allSettings.ChatLines; end 
 
 	
-	
 	return
 end
 
@@ -4887,7 +4971,7 @@ function ShowBigMode(show)
 end
 
 function DrawBigMode()
-
+		--b_ChatBufferIdx[3] = b_ChatBufferIdx[1]
 	if not allSettings.BigModeWarning[1] then
 		AddWarning('This feature is not optimized!\n\nIt should be used mainly to review chat history.\n\nIt will cause stuttering if kept open on combat logs during a fight.',280, allSettings.BigModeWarning)
 	end
@@ -5063,9 +5147,13 @@ function DrawBigMode()
 			while IDi <= math.max(IDe-1,0) do
 				--copyBufferText = b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi] ~= '[link]' and copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi] or copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].text[copyBufferIdx+IDi]
 				--
-				copyBufferText = (' '..copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].text[copyBufferIdx+IDi]):trimex()
-				if b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi] ~= '[link]' then
-					copyBufferText = copyBufferText..' '..b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi]
+				if b_ChatBuffer[b_ChatBufferMode[1]][2].text[copyBufferIdx+IDi] then
+					copyBufferText = (' '..copyBufferText..b_ChatBuffer[b_ChatBufferMode[1]][2].text[copyBufferIdx+IDi]):trimex()
+					if b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi] ~= '[link]' then
+						copyBufferText = copyBufferText..' '..b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[copyBufferIdx+IDi]
+					end
+				else
+					break
 				end
 				IDi = IDi + 1;
 			end
@@ -5099,7 +5187,7 @@ function DrawBigMode()
 		
 		if (mouseX > fcw[3].Anchor_X and mouseX < fcw[3].Anchor_X+fcw[3].BG_W and
 		mouseY > positionStartY+scrollOffset and mouseY < positionStartY+scrollOffset+allSettings.fontSettings.font_height*(ChatLines+1)
-		and imguiWrap.IsWindowHovered(ImGuiHoveredFlags_RectOnly) and fcw[3].ChatShift == allSettings.fontSettings.font_height
+		and imguiWrap.IsWindowHovered(ImGuiHoveredFlags_RectOnly) and not fcw[1].BufferBusy
 		)
 		then
 			--if fcw[3].ScrollDelta > 0 then print('scroll!') end
@@ -5144,14 +5232,6 @@ function DrawBigMode()
 		end
 		fcw[3].ScrollDelta=0;
 		
-		-- if (fcw[3].ScrolledBack > 0) then
-			-- fo_Bkw[1]:set_visible(true);
-		-- else
-
-			-- fo_Bkw[1]:set_visible(false);
-		-- end
-		
-		
 		
 		if (imgui.IsMouseClicked(ImGuiMouseButton_Right)) then
 			if fcw[1].ScrolledBack > 0 then
@@ -5167,7 +5247,7 @@ function DrawBigMode()
 
 	end
 	
-	if (fcw[3].Scrolling and fcw[3].ScrollUpRequest)
+	if (fcw[3].Scrolling and fcw[3].ScrollUpRequest) and not fcw[1].BufferBusy
 	then
 		fcw[3].ScrollUpRequest = false;
 		ScrollLines(3,
@@ -5182,7 +5262,8 @@ function DrawBigMode()
 			--print('hello')
 			--if fcw[1].ScrolledBack > utils.GetTableLen(b_ChatBuffer[b_ChatBufferMode][2].text)-allSettings.ChatLines-(b_ChatBufferN-b_ChatBufferIdx) then fcw[1].ScrolledBack = fcw[1].ScrolledBack -1 end
 
-	elseif (fcw[3].Scrolling and fcw[3].ScrollDownRequest) then
+	elseif (fcw[3].Scrolling and fcw[3].ScrollDownRequest) and not fcw[1].BufferBusy
+	then 
 		fcw[3].ScrollDownRequest = false;
 		ScrollLines(3,
 			b_ChatBuffer[b_ChatBufferMode[1]][2].text[utils.GetTableLen(b_ChatBuffer[b_ChatBufferMode[1]][2].text)+1-fcw[3].ScrolledBack-(b_ChatBufferN[1]-b_ChatBufferIdx[3])],
@@ -5193,17 +5274,18 @@ function DrawBigMode()
 		);
 		fcw[3].ScrolledBack = fcw[3].ScrolledBack -1;
 		if fcw[3].ScrolledBack == 0 then
-			print('reset')
+			--print('reset')
 			fcw[3].Scrolling = false;
 			ResetLines(3, ChatLines);
 		end
 	elseif not fcw[3].BigModePrev or (not fcw[3].Scrolling and b_ChatBufferIdx[3] < b_ChatBufferN[1]) then
 		ResetLines(3, ChatLines)
-		b_ChatBufferIdx[3] = b_ChatBufferN[1]
+		--b_ChatBufferIdx[3] = b_ChatBufferN[1]
 		--print('hello')
 		--print(b_ChatBufferIdx[3])
 		--print(fcw[3].BigModePrev)
 	end
+	b_ChatBufferIdx[3] = b_ChatBufferN[1]
 	fcw[3].RequestAuxFix = true
 	--Debug(tostring(b_ChatBufferIdx[3]), 
 	imgui.End()
@@ -5689,6 +5771,7 @@ function CombatText(msg, chn)
 				Ext = Ext:gsub('is afflicted with', combatCP.LEFT)
 				Ext = Ext:gsub(' increases to', ':')
 				Ext = Ext:gsub('The total for ', '')
+				Ext = Ext:gsub('Treasure Hunter effectiveness against','TH on')
 				Ext = Ext:gsub('successfully (.)', function(c) return combatCP.RIGHT..' '..c:upper() end)
 				Ext = ': '..Ext..' '
 			else
@@ -6013,7 +6096,8 @@ function CombatText(msg, chn)
 		--Rosabelle uses Animated Flourish on the Tchakka.65
 		Ext, A = msg:match('^(%d*) of (.+)\'s shadows.*$')
 		if A and Ext then
-			if (A == fcw[1].PlayerName) then par_DamageGot = true; end;
+			
+			
 			Ext = '-'..Ext
 			if utils.StringFindTable(A, par_party_names, nil, true) then
 				par_actor1 = A;
@@ -6021,10 +6105,17 @@ function CombatText(msg, chn)
 				A = A:gsub('[Tt]he ', '');
 				par_actor2 = A;
 			end
+			if Ext == '0' then
+				msg = 'None of '..A..'\'s shadows absorbs damage.' 
+				par_CombatCutIdx =  utils.FindLastOfMB(msg, '\'')+string.len('\'')-1;
+				return msg;
+			end
 
-			msg = A..' '..combatCP.RIGHT..' '..Ext..' '..utils.icons.UTSU
+			--msg = A..' '..combatCP.RIGHT..' '..Ext..' '..utils.icons.UTSU
+			msg = A..' '..Ext..' '..utils.icons.UTSU
+			if (A == fcw[1].PlayerName) then par_DamageGot = true; end;
 			par_isDamage = true;		
-			par_CombatCutIdx =  utils.FindLastOfMB(msg, combatCP.RIGHT)+string.len(combatCP.RIGHT)-1;
+			par_CombatCutIdx =  utils.FindLastOfMB(msg, '-')-1;
 			return msg;
 		end
 	end	
@@ -6045,7 +6136,8 @@ function CombatText(msg, chn)
 			msg = msg:gsub('^[Tt]he ', '')
 		end
 	end
-
+	
+	if msg[1] == ' ' then msg = msg:replace(' ', '{?} ',1) end
 	return msg;
 end
 
@@ -6070,6 +6162,7 @@ function CombatSpellText(msg, chn)
 			else
 				B = '?';
 			end
+			--Debug(B,1,true)
 			
 			-- if not A:find('^[Tt]he') then A = '['..ES..A..ES..']' else
 			-- A = A:gsub('[Tt]he ', ''); end
@@ -6358,48 +6451,51 @@ function CombatSpellText(msg, chn)
 			return msg;
 		end
 	end
+
 	--msg:find('^'..fcw[1].PlayerName) and
 	if  msg:find(' uses? ') and msg:find(' on ') then 
 		A, S, B = msg:match('^(.*) uses? ([^%.]*) on (.*)%.%s?$')
-		if not A or not B or not S then return msg end
-		-- if not A:find('^[Tt]he') then A = '['..ES..A..ES..']' else
-		-- A = A:gsub('[Tt]he ', ''); end
-		-- if not B:find('^[Tt]he') then B = '['..ES..B..ES..']' else
-		-- B = B:gsub('[Tt]he ', ''); end
-		if utils.StringFindTable(A, par_party_names, nil, true) then
-			par_actor1 = A;
-		else
-			A = A:gsub('[Tt]he ', '');
-			par_actor2 = A;
-		end
-		------
-		if utils.StringFindTable(B, par_party_names, nil, true) then
-			if #par_actor1 > 0 then
-				par_actorP = B;
+		if A and B and S then
+			-- if not A:find('^[Tt]he') then A = '['..ES..A..ES..']' else
+			-- A = A:gsub('[Tt]he ', ''); end
+			-- if not B:find('^[Tt]he') then B = '['..ES..B..ES..']' else
+			-- B = B:gsub('[Tt]he ', ''); end
+			if utils.StringFindTable(A, par_party_names, nil, true) then
+				par_actor1 = A;
 			else
-				par_actor1 = B;
+				A = A:gsub('[Tt]he ', '');
+				par_actor2 = A;
 			end
-		else
-			B = B:gsub('[Tt]he ', '');
-			if #par_actor2 > 0 then
-				par_actorE = B;
+			------
+			if utils.StringFindTable(B, par_party_names, nil, true) then
+				if #par_actor1 > 0 then
+					par_actorP = B;
+				else
+					par_actor1 = B;
+				end
 			else
-				par_actor2 = B;
+				B = B:gsub('[Tt]he ', '');
+				if #par_actor2 > 0 then
+					par_actorE = B;
+				else
+					par_actor2 = B;
+				end
 			end
+			S = '\\'..S..'/'
+			par_action1 = S;
+			--msg = A..' '..utf8.char(0x25B6)..' '..B..' '..combatCP.SPLIT..' ['..S..']';
+			msg = A..' '..combatCP.RIGHT..' '..B..' '..combatCP.SPLIT..' '..S..' ';
+					
+			par_CombatCutIdx =  utils.FindLastOfMB(msg, combatCP.SPLIT)+string.len(combatCP.SPLIT)-1;
+			return msg;
 		end
-		S = '\\'..S..'/'
-		par_action1 = S;
-		--msg = A..' '..utf8.char(0x25B6)..' '..B..' '..combatCP.SPLIT..' ['..S..']';
-		msg = A..' '..combatCP.RIGHT..' '..B..' '..combatCP.SPLIT..' '..S..' ';
-				
-		par_CombatCutIdx =  utils.FindLastOfMB(msg, combatCP.SPLIT)+string.len(combatCP.SPLIT)-1;
-		return msg;
 	end
 	
 	if msg:find('use') then
 		--Rosabelle uses Animated Flourish on the Tchakka.65
-
+		--Eleanor uses Bounty Shot. No effect on the Ul'yovra. 
 		A, S, Ext = msg:match("^(.*) uses? ([^%.]*)%.%s*(.*)$")
+		
 		if A and S and not msg:find('damage') and not msg:find('^You are') and not msg:find('cannot') then
 			
 			--if (A == fcw[1].PlayerName) then par_DamageDone = true; end;
@@ -6407,12 +6503,19 @@ function CombatSpellText(msg, chn)
 			if Ext and Ext:trimex() ~= '' then
 				--Ext = Ext:gsub(A..' ', '')..' '
 				--Ext = Ext:gsub('^.', string.upper(Ext:sub(1,1)))
-				Ext = Ext:gsub('receives the effect of', combatCP.LEFT)
-				Ext = Ext:gsub('gains the effect of', combatCP.LEFT)
-				Ext = Ext:gsub('is afflicted with', combatCP.LEFT)
-				Ext = Ext:gsub('successfully (.)', function(c) return combatCP.RIGHT..' '..c:upper() end)
-				--Ext = Ext..' '
-				Ext = ': '..Ext..' '
+				if Ext:find(' on ') then
+					B = Ext:match("^.-on (.-)%.%s?$")
+				end
+				if not B or B == '' then
+					Ext = Ext:gsub('receives the effect of', combatCP.LEFT)
+					Ext = Ext:gsub('gains the effect of', combatCP.LEFT)
+					Ext = Ext:gsub('is afflicted with', combatCP.LEFT)
+					Ext = Ext:gsub('successfully (.)', function(c) return combatCP.RIGHT..' '..c:upper() end)
+					--Ext = Ext..' '
+					Ext = ': '..Ext..' '
+				else
+					Ext = Ext:gsub(' on '..B, '')
+				end
 			else
 				Ext = ''
 			end
@@ -6424,16 +6527,35 @@ function CombatSpellText(msg, chn)
 				A = A:gsub('[Tt]he ', '');
 				par_actor2 = A;
 			end
+			
+			if B then
+				if utils.StringFindTable(B, par_party_names, nil, true) then
+					if #par_actor1 > 0 then
+						par_actorP = B;
+					else
+						par_actor1 = B;
+					end
+				else
+					B = B:gsub('[Tt]he ', '');
+					if #par_actor2 > 0 then
+						par_actorE = B;
+					else
+						par_actor2 = B;
+					end
+				end
+			end
+			
 			S = '\\'..S..'/'
 			
 			par_action1 = S;
 			--msg = Ext..A..' '..utf8.char(0x25B6)..' ['..S..']';
 			--msg = Ext..A..' '..combatCP.RIGHT..' '..S..' ';
-			msg = A..' '..combatCP.RIGHT..' '..S..Ext;	
+			msg = A..' '..combatCP.RIGHT..((B and #B > 0) and ' '..B..' '..combatCP.SPLIT..' '..S..': '..Ext or ' '..S..Ext);	
 
 			--par_CombatCutIdx =  utils.FindLastOfMB(msg, combatCP.RIGHT)+string.len(combatCP.RIGHT)-1;
 			par_CombatCutIdx =  utils.FindFirstOfMB(msg, combatCP.RIGHT)+string.len(combatCP.RIGHT)-1;
 			par_LastMode:replace('combatspell','combat');
+			--Debug(msg,1,true)
 			return msg;
 		end
 	end	
@@ -6595,12 +6717,15 @@ parseThis = function(e, e_message)
 		return s:sub(1, 1):append(spacing);
 	 end);
 
+	par_MessageMode = bit.band(e.mode,  0x000000FF);
+	
 	local ts = '';
-	if (allSettings.timeStamp[1]) then ts = os.date(par_FormatTS[allSettings.FormatTSMode], os.time())..' '; end
+	if allSettings.timeStamp[1] then ts = os.date(par_FormatTS[allSettings.FormatTSMode], os.time())..' '; end
+	
 	original_msg = msg;
 
 	
-	par_MessageMode = bit.band(e.mode,  0x000000FF);
+	
 
 	local fwdmsg = false;
 	if (par_MessageMode == 150 or par_MessageMode == 151) then --or par_MessageMode == 152)
@@ -6849,6 +6974,10 @@ parseThis = function(e, e_message)
 		
 		if string.find(par_LastMode, 'combat_') then
 			newText = CombatText(newText, par_MessageMode);
+			if allSettings.PreciseTS[1] and utils.IsInTable({36,37,44,166},par_MessageMode) then
+				--ts = os.date(par_FormatTS[1], os.time())..' ';
+				newText = newText..' '..os.date(par_FormatTS[1], os.time())
+			end
 		end
 	end
 	
@@ -6894,13 +7023,13 @@ parseThis = function(e, e_message)
 		
 			--if (string.find(par_LastMode, 'combat') == nil) then return 2; end
 		local isCombatMsg = false
-		local tabmode;
-		if (string.find(par_LastMode, '^combat')) then tabmode = 3; isCombatMsg = true;
-		elseif (string.find(par_LastMode, '^linkshell')) then tabmode = 4;
-		elseif (string.find(par_LastMode, '^party')) then tabmode = 5; 
-		elseif (string.find(par_LastMode, '^tell')) then tabmode = 6; 
-		elseif (string.find(par_LastMode, '^shout')) then tabmode = 7; 
-		else tabmode = -1;
+		par_tabmode = nil;
+		if (string.find(par_LastMode, '^combat')) then par_tabmode = 3; isCombatMsg = true;
+		elseif (string.find(par_LastMode, '^linkshell')) then par_tabmode = 4;
+		elseif (string.find(par_LastMode, '^party')) then par_tabmode = 5; 
+		elseif (string.find(par_LastMode, '^tell')) then par_tabmode = 6; 
+		elseif (string.find(par_LastMode, '^shout')) then par_tabmode = 7; 
+		else par_tabmode = -1;
 		end
 		
 		--npc, ls, party, tell, shout
@@ -6910,7 +7039,7 @@ parseThis = function(e, e_message)
 			
 			if allSettings.CustomTabModes[cmode] then
 				if cmode == 1 and string.find(par_LastMode, 'NPC$') or
-				tabmode == cmode+2				
+				par_tabmode == cmode+2				
 				then
 					par_isCustom = true
 					break
@@ -6922,6 +7051,9 @@ parseThis = function(e, e_message)
 		
 		local n_lines = math.floor((string.len(newText))/allSettings.chatLineMaxL);
 		if math.fmod(string.len(newText), allSettings.chatLineMaxL) ~= 0 then  n_lines = n_lines+1; end
+		
+		par_checkAgain = {0, ''}
+		
 		local check_again = false;
 		local check_again_text = ''
 		local carry_over = false;
@@ -7085,29 +7217,9 @@ parseThis = function(e, e_message)
 			end 
 			
 			
-			-- if #newLinesIdx > 0 then
-			-- Debug(tostring(newLinesIdx[1]-(newLinesIdx[1]-textLeft) ), 1, true)
-				-- --for NLI_i = 1, #newLinesIdx do
-					-- if newLinesIdx[1]-(newLinesIdx[1]-textLeft) <= cutIdx then
-						
-						-- cutIdx = newLinesIdx[1];
-						-- lineBreak = '';
-						-- table.remove(newLinesIdx, 1);
-						-- --break;
-					-- end
-					
-			-- --	end
-			-- end
-			
-			--------------------------------------------------------------------------
-			--Debug(tostring(carry_over),1,true)
-			-- if carry_over == 'lot' then
-				-- newText = newText:gsub(': ',' ['):gsub('points%.',']');
-				-- --Debug(newText,1,true)
-				-- carry_over = false
-			-- end
 			
 			
+			local MCList = {}
 			
 			if
 				par_MessageMode == 9 or
@@ -7115,12 +7227,20 @@ parseThis = function(e, e_message)
 				par_MessageMode == 151 or
 				par_MessageMode == 121 or
 				par_MessageMode == 131 or
-				par_MessageMode == 127
+				par_MessageMode == 127 or
+				par_MessageMode == 90 or
+				par_MessageMode == 85 
 			then
-				special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color = CheckSpecial(special_idx, special_offset, special_type, special_color, tabmode, L_i, check_again, check_again_text, n_lines, carry_over, carry_over_color, cutIdx, newText)
+				MCSpecial = CheckSpecial(newText, col, cutIdx)
+				if MCSpecial and MCSpecial[2] then
+					newText = MCSpecial[1]
+					
+					table.insert(MCList, MCSpecial[2])
+					if MCSpecial[3] then
+						cutIdx = MCSpecial [3]
+					end
+				end
 			end
-			
-			local MCList = {}
 			
 			if L_i == 1 and allSettings.timeStamp[1] then
 				local e = newText:find(']')
@@ -7128,6 +7248,7 @@ parseThis = function(e, e_message)
 					table.insert(MCList, {0, e, 0xFFFFFFFF})
 				end
 			end
+			
 			-- local ATchar_1 = newText:find(utf8.char(0x276e), 1, true)
 			-- local ATchar_2 = newText:find(utf8.char(0x276f), 1, true)
 			-- if ATchar_1 then table.insert(MCList, {ATchar_1-1, ATchar_1+2, 0xFF0D9441}) end
@@ -7150,118 +7271,8 @@ parseThis = function(e, e_message)
 				ATstart = e + 1
 				
 			end
-			if ( special_idx ~= nil) then
-				if special_color == '' then special_color = allSettings.colors.obtained[1]; end
-				col = 0xFFFFFFFF;
-				if special_type == 'prevspecial' then
-					table.insert(b_ChatBuffer[1][2].text, string.sub(newText,1,special_idx+special_offset));
-					special_text = string.sub(newText,special_idx+special_offset+1,cutIdx);
-				elseif special_type == 'CE' then
-					--CE exclusive!--
-					table.insert(b_ChatBuffer[1][2].text, string.sub(newText,1,special_idx+special_offset));
-					special_text = string.sub(newText,special_idx+special_offset+1,cutIdx)..lineBreak;
-				elseif special_type == 'obtain' then 
-					table.insert(b_ChatBuffer[1][2].text, string.sub(newText,1,special_idx+special_offset));
-					special_text = string.sub(newText,special_idx+special_offset+1,cutIdx):gsub('the temporary item:%s*(.-)([!%p])$', function(item, punct)
-						local cap = item:gsub("^%l", string.upper)
-						return utils.icons.TEMP .. ' ' .. cap .. punct
-					end
-					):gsub('gil%.', 'gil'..utils.icons.GIL):gsub('points%.','points'..utils.icons.EXP)..lineBreak;
-				elseif special_type == 'attain' then
-					table.insert(b_ChatBuffer[1][2].text, string.sub(newText,1,special_idx+special_offset));
-					special_text = string.sub(newText,special_idx+special_offset+1,cutIdx):gsub("^%l", string.upper):gsub('!',' ')..utils.icons.LVLUP..lineBreak;
-				elseif special_type == 'synth' then
-					table.insert(b_ChatBuffer[1][2].text, string.sub(newText,1,special_idx+special_offset));
-					special_text = string.sub(newText,special_idx+special_offset+1,cutIdx)..lineBreak;
-				elseif special_type == 'learn' then
-					table.insert(b_ChatBuffer[1][2].text, string.sub(newText,1,special_idx+special_offset));
-					special_text = string.sub(newText,special_idx+special_offset+1,cutIdx)..lineBreak;
-				elseif special_type == 'lot' then
-					table.insert(b_ChatBuffer[1][2].text, string.sub(newText,1,special_idx+special_offset));
-					special_text = string.sub(newText,special_idx+special_offset+1,cutIdx)..lineBreak;
-				elseif special_type == 'find' then
-					local F_start = special_idx+9; 
-					
-					special_idx = string.find(newText, ' on ');
-					if special_idx == nil then special_idx = string.find(newText, ' in '); end
-					
-					local findText = ''
-					if special_idx then
-						local F_end = special_idx-1;
-						local F = string.sub(string.sub(newText,1,#newText),F_start,F_end):gsub('^an? ',' '):gsub("^ %l", string.upper);
-						F = utils.icons.LOOT..F
-						local B_start = special_idx+4;
-						local B_end = #string.sub(newText,1,#newText)-1;
-						local B = string.sub(string.sub(newText,1,#newText),B_start,B_end);
-						--local findText = ts..'Found on '..B;
-						--findText = ts..'Found on '..B:gsub('the ','')..combatCP.RIGHT;
-						findText = ts..B:gsub('the ','')..combatCP.RIGHT;
-						--findText = ts..B..' '..utils.icons.LOOT..':';
-						--special_text = '> '..F..'.';
-						special_text = F;
-						newText = findText..special_text;
-						textLeft = string.len(newText);
-						if n_lines > 1 then --carry_over_color = 0xFFA1FF3D;
-							-- there are more lines allocated for this messages --
-							if (string.len(findText..special_text)+1 < allSettings.chatLineMaxL) then
-								-- modified line fits in 1 line --
-								table.insert(b_ChatBuffer[1][2].text, findText);
-								n_lines = 1;
-							else
-								-- modified line doesn't fit in 1 line --
-								if string.len(findText) < allSettings.chatLineMaxL then
-									-- the findText fits
-									carry_over_color = 0xFFE5FF3D;
-									table.insert(b_ChatBuffer[1][2].text, findText);
-									cutIdx = string.len(newText)-(string.len(newText)-allSettings.chatLineMaxL);
-									local ls = utils.FindLastOf(string.sub(newText,1,cutIdx),' ');
-									if (ls ~= nil) then if (cutIdx-ls)<4 then cutIdx = ls; end end
-									special_text = string.sub(special_text,1, string.len(special_text)-(string.len(newText)-cutIdx));
-									--dw_TestMessage = findText..'\n-'..special_text;
-									--special_text = string.sub(special_text,1, string.len(findText..special_text) - allSettings.chatLineMaxL);
-									--cutIdx = string.len('5'..findText..special_text);
-								else
-									-- the findText doesn't fit
-									cutIdx = #findText-(#findText-allSettings.chatLineMaxL)
-									table.insert(b_ChatBuffer[1][2].text, findText:sub(1,cutIdx));
-									special_text = ''
-									check_again_text = findText:sub(cutIdx+1,#findText)
-									check_again = true
-									--cutIdx = 
-								end
-							end
-						else
-							-- there is 1 line allocated for this message --
-							if (string.len(findText..special_text)+1 < allSettings.chatLineMaxL) then
-								-- modified line fits in 1 line --
-								table.insert(b_ChatBuffer[1][2].text, findText);
-							else
-								-- modified line doesn't fits in 1 line anymore --
-								if string.len(findText) < allSettings.chatLineMaxL then
-									-- the findText fits math.min(allSettings.chatLineMaxL,textLeft);
-									carry_over_color = 0xFFE5FF3D;
-									table.insert(b_ChatBuffer[1][2].text, findText);
-									cutIdx = string.len(newText)-(string.len(newText)-allSettings.chatLineMaxL);
-									local ls = utils.FindLastOf(string.sub(newText,1,cutIdx),' ');
-									if (ls ~= nil) then if (cutIdx-ls)<4 then cutIdx = ls; end end
-									special_text = string.sub(special_text,1, string.len(special_text)-(string.len(newText)-cutIdx));
-									n_lines = n_lines+1;
-								else
-									-- the findText doesn't fit
-									table.insert(b_ChatBuffer[1][2].text, '[Error] Unexpected long string');
-								end
-							end
-						end
-					else
-						table.insert(b_ChatBuffer[1][2].text, newText);
-					end
-					--table.insert(b_ChatBuffer[1][2].text, ts..'You found on '..B);
-				else
-					table.insert(b_ChatBuffer[1][2].text, string.sub(newText,1,cutIdx)..lineBreak);
-					special_text = '';
-				end
-			--elseif (par_CombatCutIdx ~= 0 and par_CombatCutIdx < allSettings.chatLineMaxL) then
-			elseif (par_CombatCutIdx ~= 0 ) then
+			
+			if (par_CombatCutIdx ~= 0 ) then
 				
 				
 				if (par_CombatCutIdx <= cutIdx) then
@@ -7310,6 +7321,9 @@ parseThis = function(e, e_message)
 							end
 							if par_DamageGot then
 								col = allSettings.colors.dmggot[cb];;
+							end
+							if allSettings.PreciseTS[1] and utils.IsInTable({36,36,44,166},par_MessageMode) then
+								col = allSettings.colors.combat[1];
 							end
 							--table.insert(MCList, {par_CombatCutIdx, #newText, col})
 						else
@@ -7419,7 +7433,7 @@ parseThis = function(e, e_message)
 					table.insert(b_ChatBuffer[1][2].auxColor, 0xFF44CCFF);
 				end
 				
-				if tabmode and (tabmode ~= 3 and not par_isCustom) then
+				if par_tabmode and (par_tabmode ~= 3 and not par_isCustom) then
 					--Debug(tostring(tabmode), 1, true);
 					table.insert(b_ChatBuffer[2][2].text,b_ChatBuffer[1][2].text[#b_ChatBuffer[1][2].text]);
 					--table.insert(b_ChatBuffer[2][2].mode,b_ChatBuffer[1][2].mode[#b_ChatBuffer[1][2].mode]);
@@ -7428,19 +7442,19 @@ parseThis = function(e, e_message)
 					table.insert(b_ChatBuffer[2][2].auxColor,b_ChatBuffer[1][2].auxColor[#b_ChatBuffer[1][2].auxColor]);
 					table.insert(b_ChatBuffer[2][2].url,b_ChatBuffer[1][2].url[#b_ChatBuffer[1][2].url]);
 				end
-				if (tabmode and tabmode > 2) then	
+				if (par_tabmode and par_tabmode > 2) then	
 					
-					table.insert(b_ChatBuffer[tabmode][2].text,b_ChatBuffer[1][2].text[#b_ChatBuffer[1][2].text]);
-					--table.insert(b_ChatBuffer[tabmode][2].mode,b_ChatBuffer[1][2].mode[#b_ChatBuffer[1][2].mode]);
-					table.insert(b_ChatBuffer[tabmode][2].color,b_ChatBuffer[1][2].color[#b_ChatBuffer[1][2].color]);
-					table.insert(b_ChatBuffer[tabmode][2].auxText,b_ChatBuffer[1][2].auxText[#b_ChatBuffer[1][2].auxText]);
-					table.insert(b_ChatBuffer[tabmode][2].auxColor,b_ChatBuffer[1][2].auxColor[#b_ChatBuffer[1][2].auxColor]);
-					table.insert(b_ChatBuffer[tabmode][2].url,b_ChatBuffer[1][2].url[#b_ChatBuffer[1][2].url]);
+					table.insert(b_ChatBuffer[par_tabmode][2].text,b_ChatBuffer[1][2].text[#b_ChatBuffer[1][2].text]);
+					--table.insert(b_ChatBuffer[par_tabmode][2].mode,b_ChatBuffer[1][2].mode[#b_ChatBuffer[1][2].mode]);
+					table.insert(b_ChatBuffer[par_tabmode][2].color,b_ChatBuffer[1][2].color[#b_ChatBuffer[1][2].color]);
+					table.insert(b_ChatBuffer[par_tabmode][2].auxText,b_ChatBuffer[1][2].auxText[#b_ChatBuffer[1][2].auxText]);
+					table.insert(b_ChatBuffer[par_tabmode][2].auxColor,b_ChatBuffer[1][2].auxColor[#b_ChatBuffer[1][2].auxColor]);
+					table.insert(b_ChatBuffer[par_tabmode][2].url,b_ChatBuffer[1][2].url[#b_ChatBuffer[1][2].url]);
 				end
 				if (par_isCustom) then	
 					
 					table.insert(b_ChatBuffer[8][2].text,b_ChatBuffer[1][2].text[#b_ChatBuffer[1][2].text]);
-					--table.insert(b_ChatBuffer[tabmode][2].mode,b_ChatBuffer[1][2].mode[#b_ChatBuffer[1][2].mode]);
+					--table.insert(b_ChatBuffer[par_tabmode][2].mode,b_ChatBuffer[1][2].mode[#b_ChatBuffer[1][2].mode]);
 					table.insert(b_ChatBuffer[8][2].color,b_ChatBuffer[1][2].color[#b_ChatBuffer[1][2].color]);
 					table.insert(b_ChatBuffer[8][2].auxText,b_ChatBuffer[1][2].auxText[#b_ChatBuffer[1][2].auxText]);
 					table.insert(b_ChatBuffer[8][2].auxColor,b_ChatBuffer[1][2].auxColor[#b_ChatBuffer[1][2].auxColor]);
@@ -7506,7 +7520,7 @@ parseThis = function(e, e_message)
 		end
 		n_lines = n_lines-skipped;
 		b_ChatBufferN_All  = b_ChatBufferN_All+n_lines;
-		if (tabmode ~= 3 and not par_isCustom) then b_ChatBufferN_AllAlt = b_ChatBufferN_AllAlt + n_lines; end
+		if (par_tabmode ~= 3 and not par_isCustom) then b_ChatBufferN_AllAlt = b_ChatBufferN_AllAlt + n_lines; end
 		if allSettings.SelectedTab:find('^All') or allSettings.SelectedTab2:find('^All') then ResetAutoHideTimer() end
 		
 		if (string.find(par_LastMode, '^combat')) then
@@ -7533,163 +7547,201 @@ parseThis = function(e, e_message)
 	end
 	par_LastMessageMode = par_MessageMode;
 end
-	
-function CheckSpecial (special_idx, special_offset, special_type, special_color, tabmode, L_i, check_again, check_again_text, n_lines, carry_over, carry_over_color, cutIdx, newText)
-	if (L_i == 1 or check_again) then
-		check_again = false;
-		
-		--CE exclusive!--
-		check_mode = par_MessageMode == 9;
-		if check_mode then
-		
-			special_idx, idx_end = string.find(newText, 'Now accumulating linkshell points for ');
-			if (special_idx ~= nil) then special_offset = string.find(newText, '%(')-1-special_idx; special_type = 'CE';
-			special_color = allSettings.colors.cexi[1];
-			if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.cexi[1]; end end
-			return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text,carry_over, carry_over_color; end
-			
-			special_idx, idx_end = string.find(newText, 'Activity Points:');
-			if (special_idx ~= nil) then special_offset = 15 special_type = 'CE';
-			special_color = allSettings.colors.cexi[1];
-			if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.cexi[1]; end end
-			return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-			
-			special_idx, idx_end = string.find(newText, 'Summit Objective:');
-			if (special_idx ~= nil) then special_offset = 16; special_type = 'CE';
-			special_color = allSettings.colors.cexi[1];
-			if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.cexi[1]; end end
-			return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-			
-			special_idx, idx_end = string.find(newText, ' activity points%.');
-			if (special_idx ~= nil) then special_idx, idx_end = string.find(newText, 'gains'); special_offset = 4; special_type = 'CE'; if not special_idx then return end
-			special_color = allSettings.colors.cexi[1];
-			if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.cexi[1]; end end
-			return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-			
-			special_idx, idx_end = string.find(newText, 'Point Accumulation:');
-			if (special_idx ~= nil) then special_offset = 19; special_type = 'CE';
-			special_color = allSettings.colors.cexi[2];
-			if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.cexi[2]; end end
-			return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-		
+
+function HandleSpecial(newText, category, prefix, suffix, cutIdx, color, replacements)
+	local text_b, text_e, color_b, color_e, MCTable
+
+	if prefix then text_b, text_e = string.find(newText, prefix) else text_b = 1 text_e = 1 end
+	--Debug(newText, 1, true)
+	if text_b then
+		color_b = text_e
+		if suffix and prefix then
+			color_e = utils.FindLastOfString(newText, suffix, color_b)
+		elseif not suffix and prefix then
+			color_e = #newText+1
+		elseif not prefix then
+			--Debug(tostring(string.find(newText, suffix,1,true)),1,true)
+			color_b = utils.FindLastOfString(newText, suffix)
+			if color_b then
+				color_b = color_b-1
+				color_e = color_b+1+#suffix
+			else
+				return {newText, nil, cutIdx}
+			end
 		end
-		
-		check_mode = par_MessageMode == 121;
-		if check_mode then
-		special_idx = string.find(newText, 'Defeat Mobs');
-		if special_idx ~= nil then	special_offset = 11; special_type = 'CE'; special_color = allSettings.colors.cexi[1];
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.cexi[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-		end
-		-----------------
-		
-		check_mode = par_MessageMode == 142 or par_MessageMode == 151;
-		if check_mode then
-		special_idx = string.find(newText, 'You obtain');
-		if (special_idx ~= nil) then special_offset = 9; special_type = 'obtain';
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.obtained[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-		end
-		
-		check_mode = par_MessageMode == 142 or par_MessageMode == 151;
-		if check_mode then
-		special_idx = string.find(newText, 'Obtained:');
-		if (special_idx ~= nil) then special_offset = 8; special_type = 'obtain';
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.obtained[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-		end
-		
-		check_mode = par_MessageMode == 142 or par_MessageMode == 151;
-		if check_mode then
-		special_idx = string.find(newText, fcw[1].PlayerName..' caught');
-		if (special_idx ~= nil) then special_offset = 6 + #fcw[1].PlayerName; special_type = 'obtain';
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.obtained[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-		end
-		
-		check_mode = par_MessageMode == 121 or par_MessageMode == 142 or par_MessageMode == 131 or par_MessageMode == 127;
-		if check_mode then
-		special_idx = string.find(newText, ' obtains ');
-		if (special_idx ~= nil) then	special_offset = 8	;	special_type = 'obtain';
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.obtained[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-		end
-		
-		check_mode = par_MessageMode == 142 or par_MessageMode == 151;
-		if check_mode then
-		special_idx = string.find(newText, 'Obtained key item: ');
-		if (special_idx ~= nil) then	special_offset = 18	;	special_type = 'obtain';
-		special_color = allSettings.colors.keyitem[1];
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.keyitem[1];  end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-		end
-		
-		check_mode = par_MessageMode == 121;
-		if check_mode then
-		special_idx = string.find(newText, ' synthesized ');
-		if (special_idx ~= nil and string.find(newText, 'You ')) then	special_offset = 12; special_type = 'synth';
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.obtained[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-		end
-		--Eleanor attains level 17!
-		check_mode = par_MessageMode == 121;
-		if check_mode then
-		special_idx = string.find(newText, ' attains level [%d]+!');
-		if (special_idx ~= nil and string.find(newText, fcw[1].PlayerName)) then special_offset = 8; special_type = 'attain';
-		special_color = allSettings.colors.attain[1];
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.attain[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
-		end
+		--Debug(tostring(color_e)..'-'..tostring(cutIdx),1,true)
+		if color_e then
+			--Debug('hello',1,true)
+			color_e = color_e - 1
+			if color_b >= cutIdx then
 				
-		check_mode = par_MessageMode == 121;
-		if check_mode then
-		special_idx = string.find(newText, ' caught ');
-		if (special_idx ~= nil and string.find(newText, fcw[1].PlayerName)) then special_offset = 7; special_type = 'synth';
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.obtained[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
+				par_checkAgain = {color_b-cutIdx, category}
+				MCTable = {0, 0}
+				return {newText, nil, cutIdx}
+			else --color_b < cutIdx
+				if color_e > cutIdx then
+					
+					--Debug(newText, 1, true)
+					par_checkAgain = {0, category}
+					MCTable = {color_b, #newText,color}
+					return {newText, MCTable, cutIdx}
+				else --color_ <= cutIdx
+					
+					--Debug(newText, 1, true)
+					MCTable = {color_b, color_e, color}
+					return {newText, MCTable, cutIdx}
+				end
+			end
 		end
-		
-		check_mode = par_MessageMode == 121;
-		if check_mode then
-		special_idx = string.find(newText, ' learns ');
-		if (special_idx ~= nil and string.find(newText, fcw[1].PlayerName)) then	special_offset = 7; special_type = 'learn'; special_color = allSettings.colors.learn[1];
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.learn[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
+		return {newText, nil, cutIdx}
+	elseif par_checkAgain[2] == category then
+		--Debug('hello',1,true)
+		if suffix then
+			color_e = utils.FindLastOfString(newText, suffix)
+		elseif not suffix and prefix then
+			color_e = #newText+1
+		elseif not prefix then
+			color_b = utils.FindLastOfString(newText, suffix)
+			if color_b then
+				color_b = color_b-1
+				color_e = color_b+1+#suffix
+			else
+				return {newText, nil, cutIdx}
+			end
 		end
-		
-		check_mode =  par_MessageMode == 131 or par_MessageMode == 121;
-		if check_mode then
-		special_idx = string.find(newText, ' gains ');
-		if (special_idx ~= nil and (string.find(newText, 'experience') or string.find(newText, 'limit')))  then special_offset = 6; special_type = 'obtain'; tabmode = 3; par_LastMode = 'combat';
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.obtained[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
+		if color_e then
+			color_e = color_e - 1
+		else
+			return {newText, nil, cutIdx}
 		end
-		
-		check_mode = par_MessageMode == 121;
-		if check_mode then
-		special_idx = string.find(newText, 'You find ');
-		if (special_idx ~= nil) then	special_offset = 8;	special_type = 'find'; special_color = allSettings.colors.found[1];
-		--if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = 0xFFA1FF3D; end end
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.found[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color;
-		elseif check_again_text ~= '' then
-		special_idx = string.find(newText, check_again_text);
-		if special_idx then special_offset = check_again_text:find(':')-special_idx;	special_type = 'prevspecial'; end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color;	
+		MCTable = {par_checkAgain[1], color_e, color}
+		return {newText, MCTable, cutIdx}
+	end
+	return {newText, nil, cutIdx}
+end
+
+function CheckSpecial(newText, col, cutIdx)
+	
+	if par_MessageMode == 9 then
+		if newText:find('Now accumulating linkshell points for ') or par_checkAgain[2] == 'CE-acc' then
+			return HandleSpecial(newText, 'CE-acc', 'Now accumulating linkshell points for ', '%.', cutIdx, allSettings.colors.cexi[1])
 		end
+		if newText:find('Activity Points: ') or par_checkAgain[2] == 'CE-AP' then
+			return HandleSpecial(newText, 'CE-AP', 'Activity Points: ', '%.', cutIdx, allSettings.colors.cexi[1])
 		end
-		
-		check_mode = par_MessageMode == 121;
-		if check_mode then
-		special_idx = string.find(newText, ' lot for ');
-		if (special_idx ~= nil) then	special_offset = 8;	special_type = 'lot'; special_color = allSettings.colors.lot[1]; tabmode = -1; par_LastMode = 'lot';
-		--if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = 0xFFA1FF3D; end end
-		if special_idx+special_offset > cutIdx then check_again = true; else if #newText > cutIdx then carry_over_color = allSettings.colors.lot[1]; end end
-		return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over, carry_over_color; end
+		if newText:find('Summit Objective:') or par_checkAgain[2] == 'CE-SO' then
+			return HandleSpecial(newText, 'CE-SO', 'Summit Objective:', '%.', cutIdx, allSettings.colors.cexi[1])
+		end
+		if newText:find(' activity points%.') or par_checkAgain[2] == 'CE-AP2' then
+			return HandleSpecial(newText, 'CE-AP2', 'gains', '%.', cutIdx, allSettings.colors.cexi[1])
+		end
+		if newText:find('Point Accumulation:') or par_checkAgain[2] == 'CE-PA' then
+			return HandleSpecial(newText, 'CE-PA', 'Point Accumulation:', '%.', cutIdx, allSettings.colors.cexi[1])
+		end
+	end
+	
+	
+	if par_MessageMode == 121 then
+		if newText:find('You find') or par_checkAgain[2] == 'youfind' then
+			if par_checkAgain[2] == '' then newText = newText:gsub('You find', 'Found'):gsub(' on ', utils.icons.LOOT..' on ') end
+			return HandleSpecial(newText, 'youfind', 'Found', ' on ', cutIdx, allSettings.colors.found[1])
+		end
+		if newText:find('Defeat Mobs') or par_checkAgain[2] == 'CE-DM' then
+			return HandleSpecial(newText, 'CE-DM', 'Defeat Mobs ', ' %(', cutIdx,allSettings.colors.cexi[1])
+		end
+		if newText:find('Quest Completed:') or par_checkAgain[2] == 'CE-QC2' then
+			return HandleSpecial(newText, 'CE-QC2', nil, utf8.char(0x25C6)..' Quest Completed:', cutIdx,allSettings.colors.cexi[1])
+		end
+		if newText:find('Quest Completed') or par_checkAgain[2] == 'CE-QC' then
+			return HandleSpecial(newText, 'CE-QC', nil, utf8.char(0x25C6)..' Quest Completed', cutIdx,allSettings.colors.cexi[1])
+		end
+		if newText:find(' synthesized ') or par_checkAgain[2] == 'synth' then
+			return HandleSpecial(newText, 'synth',  'You synthesized ', '%.', cutIdx,allSettings.colors.obtained[1])
+		end
+		if newText:find('You throw away ') or par_checkAgain[2] == 'throw' then
+			return HandleSpecial(newText, 'throw',  'You throw away ', '%.', cutIdx,allSettings.colors.negative[1])
+		end
+		if newText:find(' attains level [%d]+!') or par_checkAgain[2] == 'attain' then	
+			if par_checkAgain[2] == '' then newText = newText:gsub("%sl", string.upper):gsub('!',' '..utils.icons.LVLUP) cutIdx = cutIdx + 3 end
+			return HandleSpecial(newText, 'attain',  ' attains ', nil, cutIdx,allSettings.colors.attain[1])
+		end
+		if newText:find(' caught ') or par_checkAgain[2] == 'caught2' then
+			return HandleSpecial(newText, 'caught2',  fcw[1].PlayerName, '%!', cutIdx,allSettings.colors.obtained[1])
+		end
+		if newText:find(' learns ') or par_checkAgain[2] == 'learn' then
+			return HandleSpecial(newText, 'learn',  fcw[1].PlayerName, '%.', cutIdx,allSettings.colors.learn[1])
+		end
+		if newText:find(' lot for ') or par_checkAgain[2] == 'lot' then
+			par_tabmode = -1;
+			par_LastMode = 'lot';
+			return HandleSpecial(newText, 'lot',  ' lot for ', '%.', cutIdx,allSettings.colors.lot[1])
+		end
+		if newText:find('You sell ') or par_checkAgain[2] == 'sell' then
+			return HandleSpecial(newText, 'sell',  'You sell ', ' to ', cutIdx,allSettings.colors.obtained[1])
+		end
+		if newText:find('You buy ') or par_checkAgain[2] == 'buy' then
+			return HandleSpecial(newText, 'buy',  'You buy ', ' from ', cutIdx,allSettings.colors.obtained[1])
+		end
+	end
+	
+	if par_MessageMode == 142 or par_MessageMode == 151 then
+		if newText:find('You obtain.*%.') or par_checkAgain[2] == 'obtain1' then
+			return HandleSpecial(newText, 'obtain1', 'You obtain', '%.', cutIdx, allSettings.colors.obtained[1])
+		end
+		if newText:find('Obtained:') or par_checkAgain[2] == 'obtain2' then
+			return HandleSpecial(newText, 'obtain2', 'Obtained:', '%.', cutIdx, allSettings.colors.obtained[1])
+		end
+		if newText:find(fcw[1].PlayerName..' caught') or par_checkAgain[2] == 'caught' then
+			return HandleSpecial(newText, 'caught', fcw[1].PlayerName..' caught ', '%!', cutIdx, allSettings.colors.found[1])
+		end
+		if newText:find(' obtains ') or par_checkAgain[2] == 'obtain3' then
+			return HandleSpecial(newText, 'obtain3', ' obtains ', '%.', cutIdx, allSettings.colors.obtained[1])
+		end
+		if newText:find('Obtained key item: ') or par_checkAgain[2] == 'KI' then
+			return HandleSpecial(newText, 'KI', 'Obtained key item: ', '%.', cutIdx, allSettings.colors.keyitem[1])
 		end
 		
 	end
-	return special_idx, special_offset, special_type, special_color, tabmode, check_again, check_again_text, carry_over,carry_over_color;
+	
+	if par_MessageMode == 121 or par_MessageMode == 142 or par_MessageMode == 131 or par_MessageMode == 127 then
+		if newText:find(' obtains ') or par_checkAgain[2] == 'obtain4' then
+			if newText:find('gil') then
+				if par_checkAgain[2] == '' then newText = newText:gsub('gil%.', 'gil'..utils.icons.GIL) cutIdx = cutIdx +2 end
+				return HandleSpecial(newText, 'obtain4', ' obtains ', nil, cutIdx, allSettings.colors.obtained[1])
+			else
+				return HandleSpecial(newText, 'obtain4', ' obtains ', '%.', cutIdx, allSettings.colors.obtained[1])
+			end
+		end
+		if newText:find('You obtain.*!') or par_checkAgain[2] == 'obtain5' then
+			return HandleSpecial(newText, 'obtain5', 'You obtain ', '!', cutIdx, allSettings.colors.obtained[1])
+		end
+	end
+	
+	if par_MessageMode == 131 or par_MessageMode == 121 then
+		if (newText:find(' gains ') and newText:find('experience')) or par_checkAgain[2] == 'exp' then
+			if par_checkAgain[2] == '' then newText = newText:gsub('points%.','points'..utils.icons.EXP) cutIdx = cutIdx+2 end
+			par_tabmode = 3
+			par_LastMode = 'combat'
+			return HandleSpecial(newText, 'exp', ' gains ', nil, cutIdx, allSettings.colors.obtained[1])
+		end
+		if (newText:find(' gains ') and newText:find('lim')) or par_checkAgain[2] == 'limit' then
+			if par_checkAgain[2] == '' then newText = newText:gsub('points%.','points'..utils.icons.EXP) cutIdx = cutIdx+2 end
+			par_tabmode = 3
+			par_LastMode = 'combat'
+			return HandleSpecial(newText, 'lim', ' gains ', nil, cutIdx, allSettings.colors.obtained[1])
+		end
+	end
+	
+	if par_MessageMode == 90 or par_MessageMode == 85 then
+		if newText:find(' uses ') or par_checkAgain[2] == 'use' then
+			return HandleSpecial(newText, 'use', ' uses ', '%.', cutIdx, allSettings.colors.useitem[1])
+		end
+	end
+	-- if par_MessageMode == then
+		-- if newText:find() or par_checkAgain[2] == then
+			-- return HandleSpecial(newText, , , , cutIdx, )
+		-- end
+	-- end
 end
 
 SetBufferN = function(tab)
@@ -7849,9 +7901,11 @@ function HandleActors(text, scol)
 	--text = text:gsub(par_actor1:escape() ,utils.MC(allSettings.colors.actor1[1])..par_actor1..utils.MC('reset'):gsub('%%', '%%%%'),1)
 	
 	if #par_actor1 > 0 then
-		par_handled_actors = true	
+		par_handled_actors = true
+		local color = allSettings.colors.actor1[1]
+		if par_actor1 == fcw[1].PlayerName then color = allSettings.colors.you[1] end
 		--text = text:replace(par_actor1,utils.MC(allSettings.colors.actor1[1])..par_actor1..utils.MC('reset'),1)	
-		text = text:gsub(par_actor1:escape().."([^%a-])", (utils.MC(allSettings.colors.actor1[1])..par_actor1..utils.MC('reset')):gsub('%%', '%%%%').."%1",1)	
+		text = text:gsub(par_actor1:escape().."([^%a-])", (utils.MC(color)..par_actor1..utils.MC('reset')):gsub('%%', '%%%%').."%1",1)	
 		_, a1 = text:find(par_actor1:escape(), 1, false)
 		par_actor1 = '';
 		--Debug(a1, 1, true)
@@ -7860,8 +7914,9 @@ function HandleActors(text, scol)
 	--if #par_actorP > 0 and #par_actorP ~= #par_actor1 then
 	if #par_actorP > 0 then
 		par_handled_actors = true
-		
-		text = text:sub(1,a1)..text:sub(a1+1,#text):replace(par_actorP, utils.MC(allSettings.colors.actor1[1])..par_actorP..utils.MC('reset'),1)
+		local color = allSettings.colors.actor1[1]
+		if par_actorP == fcw[1].PlayerName then color = allSettings.colors.you[1] end
+		text = text:sub(1,a1)..text:sub(a1+1,#text):replace(par_actorP, utils.MC(color)..par_actorP..utils.MC('reset'),1)
 		--if a1 then
 			--text = text:replace(par_actorP, utils.MC(allSettings.colors.actor1[1])..par_actorP..utils.MC('reset'),1)
 		---else
@@ -7884,10 +7939,11 @@ function HandleActors(text, scol)
 	--if #par_actorE > 0 and #par_actorE ~= #par_actor2 then
 	if #par_actorE > 0 then
 		par_handled_actors = true
+		--Debug(text:sub(a2+1,#text), 1, true)
 		--text = text:replace(par_actorE, utils.MC(allSettings.colors.actor2[1])..par_actorE..utils.MC('reset'),1)
-		text = text:sub(1,a2)..text:sub(a2+1,#text):replace(par_actorP, utils.MC(allSettings.colors.actor2[1])..par_actorP..utils.MC('reset'),1)
+		text = text:sub(1,a2)..text:sub(a2+1,#text):replace(par_actorE, utils.MC(allSettings.colors.actor2[1])..par_actorE..utils.MC('reset'),1)
 		par_actorE = '';
-		--Debug(text, 1, true)
+		
 	end
 
 	if #par_action1 > 0 then
@@ -7976,7 +8032,7 @@ function DrawInfoWin(maxh, idx, name, text, icon)
 	if not maxh then maxh = 0 end
 	local font = imgui.GetFont();
 	local fontSize = font.FontSize or font.LegacySize;
-	local W = fcw[1].BG_W/4;
+	local W = (allSettings.UseHalfLength[1] and fcw[1].BG_W/2 or fcw[1].BG_W)/4;
 	--local H = (fontSize*16)/((allSettings.chatLineMaxL*allSettings.fontSettings.font_height)/1800);
 	--local H = 32 + (3750 * fontSize / W);
 	local font = imgui.GetFont()
@@ -8145,7 +8201,7 @@ function DrawInfo(text)
 					
 					--local textW, TextH = imgui.CalcTextSize(info[i]..fcw[1].itemIcons[idx][2])
 					--H = math.max(H, TextH * ((textW/((fcw[1].BG_W/4)-16))+2))
-					H = math.max(H, ((imgui.GetFontSize()*1)*(utils.CalcRows(inf, (fcw[1].BG_W/4)-32,imgui.CalcTextSize('H'))+1)+28+40))--+(#flags>0 and 1 or 0)
+					H = math.max(H, ((imgui.GetFontSize()*1)*(utils.CalcRows(inf, ((allSettings.UseHalfLength[1] and fcw[1].BG_W/2 or fcw[1].BG_W)/4)-32,imgui.CalcTextSize('H'))+1)+28+40))--+(#flags>0 and 1 or 0)
 					table.insert(drawcalls, {idx, info[i], inf, fcw[1].itemTexture[idx][2]})
 					--DrawInfoWin(idx,info[i],fcw[1].itemIcons[idx][2], fcw[1].itemTexture[idx][2])
 					idx = idx + 1
@@ -8175,7 +8231,7 @@ function DrawInfo(text)
 					inf = inf..desc
 					--local textW, TextH = imgui.CalcTextSize(info[i]..inf)
 					--H = math.max(H, TextH * ((textW/((fcw[1].BG_W/4)-16))+3))
-					H = math.max(H, ((imgui.GetFontSize()*1)*(utils.CalcRows(inf, (fcw[1].BG_W/4)-32,imgui.CalcTextSize('H'))+3)+28))
+					H = math.max(H, ((imgui.GetFontSize()*1)*(utils.CalcRows(inf, ((allSettings.UseHalfLength[1] and fcw[1].BG_W/2 or fcw[1].BG_W)/4)-32,imgui.CalcTextSize('H'))+3)+28))
 					table.insert(drawcalls, {idx, info[i], inf, nil})
 					--DrawInfoWin(idx,info[i],inf)
 					idx = idx + 1
@@ -8201,7 +8257,7 @@ function DrawInfo(text)
 					inf = inf..desc
 					--local textW, TextH = imgui.CalcTextSize(info[i]..inf)
 					--H = math.max(H, TextH * ((textW/((fcw[1].BG_W/4)-16))+3))
-					H = math.max(H, ((imgui.GetFontSize()*1)*(utils.CalcRows(info[i]..inf,(fcw[1].BG_W/4)-32,imgui.CalcTextSize('H'))+3)+28))
+					H = math.max(H, ((imgui.GetFontSize()*1)*(utils.CalcRows(info[i]..inf,((allSettings.UseHalfLength[1] and fcw[1].BG_W/2 or fcw[1].BG_W)/4)-32,imgui.CalcTextSize('H'))+3)+28))
 					table.insert(drawcalls, {idx, info[i], inf, nil})
 					--DrawInfoWin(idx,info[i],inf)
 					idx = idx + 1

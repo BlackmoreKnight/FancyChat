@@ -132,8 +132,8 @@ local utils =
 					{86,	'_?',		0xFFFFFFFF},
 					{87,	'_?',		0xFFFFFFFF},
 					{88,	'_?',		0xFFFFFFFF},
-					{89,	'_?',		0xFFFFFFFF},
-					{90,	'item',			0xFFFAFFDB},	-- "PC" uses item
+					{89,	'system15',	0xFFFAFFDB},
+					{90,	'item',		0xFFFAFFDB},	-- "PC" uses item
 					{91,	'_?',		0xFFFFFFFF},
 					{92,	'_?',		0xFFFFFFFF},
 					{93,	'_?',		0xFFFFFFFF},
@@ -844,24 +844,32 @@ utils.FindInStringTableFilters = function(f, sometable, scope)
 	return nil
 end
 
-utils.FindLastOf = function(str, chr)
-    for i = #str, 1, -1 do
-        if str:sub(i, i) == chr then
+utils.FindLastOf = function(str, chr, s)
+    local start = s or 1
+    if start < 1 then start = 1 end
+    if start > #str then return nil end
+
+    for i = #str, start, -1 do
+        if str:byte(i) == chr:byte(1) then
             return i
         end
     end
-    return nil -- Return nil if the character is not found
+
+    return nil
 end
 
-utils.FindLastOfString = function(str, str2)
-	local idx = 0
-	local last = nil
-	local found = true
-	while found and idx+1 < #str do
-		found, idx = str:find(str2, idx+1, true)
-		if idx then last = idx end
-	end
-	return last
+utils.FindLastOfString = function(str, str2, s)
+    local i = (s or 1)
+    if i < 1 then i = 1 end
+    if i > #str then return nil end
+
+    local last
+    while true do
+        local pos = str:find(str2, i)
+        if not pos then return last end
+        last = pos
+        i = pos + 1
+    end
 end
 
 utils.FindLastOfMB = function(str, chr)
@@ -1387,6 +1395,7 @@ utils.IsInTable = function(t, x)
 	return nil;
 end
 
+
 utils.StringFindTable = function(s, t, m, e)
 	if not m then m = true else m = false end
 	if #t == 0 then return nil; end
@@ -1439,6 +1448,9 @@ utils.CountExtraBytesT = function(s)
 						) or (
 						s:byte(i+1) == 0x9D and (
 						s:byte(i+2) == 0xA4)
+						) or (
+						s:byte(i+1) == 0x9C and (
+						s:byte(i+2) == 0x97)
 						)
 					then
 						extra_bytes = extra_bytes - 1
@@ -1763,10 +1775,47 @@ utils.CalcRows = function(text, line_width, char_size)
 	return lines_tot
 end
 
-		--safety = safety+1
---if safety > 5000 then print('safety triggered') end
-	--print(1+math.ceil(charstot/charsinline))
---local safety = 1--and safety < 5000 do
+utils.RepairSettings = function(t1, t2, seen)
+    if type(t1) ~= "table" or type(t2) ~= "table" then
+        return t2
+    end
+
+    seen = seen or {}
+    -- cycle protection: if we've already visited this pair, stop
+    local s = seen[t2]
+    if s and s[t1] then
+        return t2
+    end
+    s = s or {}
+    s[t1] = true
+    seen[t2] = s
+
+    -- First pass: collect keys to remove (safer than deleting during pairs)
+    local remove = nil
+    for k, _ in pairs(t2) do
+        if t1[k] == nil then
+            remove = remove or {}
+            remove[#remove + 1] = k
+        end
+    end
+
+    -- Remove them
+    if remove then
+        for i = 1, #remove do
+            t2[remove[i]] = nil
+        end
+    end
+
+    -- Second pass: recurse into subtables when both sides are tables
+    for k, v1 in pairs(t1) do
+        local v2 = t2[k]
+        if type(v1) == "table" and type(v2) == "table" then
+            utils.RepairSettings(v1, v2, seen)
+        end
+    end
+
+    return t2
+end
 
 return utils;
 
