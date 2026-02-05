@@ -362,7 +362,7 @@ local fo_BigMode;
 local allSettings = T{
 	UseHalfLength = T{false},
 	PreciseTS = T{false},
-	BigModeWarning = T{false},
+	--BigModeWarning = T{false},
 	MoveChatATMenu = T{true},
 	CustomFilters = T{false},
 	autoDumpChat = T{false},
@@ -596,11 +596,13 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			--Debug(tostring(allSettings.timeStampLineFreq[2]), 1, false);
 			if secondsTime == 0 then
 				if par_timePrinted == false then
-					local stringWrap = '';
-					for _ = 1, math.floor((allSettings.chatLineMaxL)/2) - 5 do
-						stringWrap = stringWrap..'\x81\xAC'
-					end
-					AshitaCore:GetChatManager():QueueCommand(1, '/echo '..stringWrap..os.date(par_FormatTS[2], os.time())..stringWrap);
+					-- local stringWrap = '';
+					-- for _ = 1, math.floor((allSettings.chatLineMaxL)/2) - 5 do
+						-- stringWrap = stringWrap..'\x81\xAC'
+					-- end
+					-- AshitaCore:GetChatManager():QueueCommand(1, '/echo '..stringWrap..os.date(par_FormatTS[2], os.time())..stringWrap);
+					local tsline = string.rep('\x81\xAC',math.floor((allSettings.chatLineMaxL)/2) - 5)
+					print(tsline..os.date(par_FormatTS[2], os.time())..tsline);
 					par_timePrinted = true;
 				end
 			else
@@ -937,7 +939,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			end
 		end
 		--Debug(tostring(fcw[1].autoHideFade),1,false)
-		
 		if fcw[3].BigMode then
 			ro_RectBG[1]:set_fill_color(0);
 			if allSettings.SecondChat[1] then ro_RectBG[2]:set_fill_color(0); end
@@ -957,7 +958,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 				fo_Bkw[2]:set_visible(false)
 				ro_Scroll[2]:set_visible(false)
 			end
-			if #fo_Chat[3]>0 and not fcw[3].BigModePrev then ResetScrolling(3, fcw[3].ChatLines); end
+			if #fo_Chat[3]>0 and not fcw[3].BigModePrev then ResetScrolling(3, fcw[3].ChatLines);  end
+			if not fcw[3].BigModePrev then b_ChatBufferIdx[3] = b_ChatBufferIdx[1] end
 			DrawBigMode()
 			fcw[3].BigModePrev = true
 		elseif fcw[3].BigModePrev then
@@ -987,16 +989,11 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			fcw[3].BigModePrev = false
 			-- fcw[2].PositionLinesRequest = {true,true}
 		end
-		
+
 		if (not uiw.LegacyChatOpen and not fcw[1].HideChat and not fcw[1].Closing and fcw[1].autoHideFade < 1 and not fcw[3].BigMode) then
 			
 			--if fcw[1].autoHideFade > 0 then
-				local updateColor = bit.band(allSettings.rectSettings.fill_color -(fcw[1].autoHideFade * allSettings.rectSettings.fill_color), 0xFF000000)
-				if ro_RectBG[1].settings.fill_color ~= updateColor then
-					--Debug(bit.tohex(updateColor),1,true)
-					ro_RectBG[1]:set_fill_color(math.min(math.max(updateColor,0x00000000)),0xFF000000);
-					SetChatOpacity(math.max(1-fcw[1].autoHideFade,0),1)
-				end
+				
 				
 				-- for C_i = 1, allSettings.ChatLines do
 					-- fo_Chat[1][C_i]:set_opacity(math.max(1-fcw[1].autoHideFade,0))
@@ -2878,11 +2875,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			if allSettings.SelectedTab2 == 'All' and allSettings.HideCombatFromAll[1] then b_ChatBufferN[2]=b_ChatBufferN_AllAlt;  end
 			
 			if (not uiw.LegacyChatOpen and not fcw[1].HideChat and not fcw[1].Closing and fcw[1].autoHideFade < 1 and not fcw[3].BigMode) then
-				local updateColor = bit.band(allSettings.rectSettings.fill_color -(fcw[1].autoHideFade * allSettings.rectSettings.fill_color), 0xFF000000)
-				if ro_RectBG[2].settings.fill_color ~= updateColor then
-					ro_RectBG[2]:set_fill_color(math.min(math.max(updateColor,0x00000000)),0xFF000000);
-					SetChatOpacity(math.max(1-fcw[1].autoHideFade,0),2)
-				end
+				
 				
 				imgui.SetNextWindowSize({ fcw[2].BG_W, ro_RectBG[2].settings.height+16 }, ImGuiCond_Once);
 				imgui.SetNextWindowSizeConstraints({ fcw[2].BG_W, ro_RectBG[2].settings.height+16 }, { FLT_MAX, FLT_MAX, }, ImGuiCond_Once);
@@ -3201,9 +3194,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 				else
 					imgui.PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0);
 				
-					button_length = {tabsW/#tab_Tabs-(tabsH-8), 0}
-					length_ref = allSettings.fontSettings.font_height*6
-					if button_length[1] > length_ref then button_length[1] = length_ref; button_length[2] = tabsW/#tab_Tabs-(tabsH-8) - length_ref end
+					button_length = {tabsW/#tab_Tabs, 0}
+					length_ref = allSettings.fontSettings.font_height*4.5
+					if button_length[1] > length_ref then button_length[1] = length_ref; button_length[2] = tabsW/#tab_Tabs - length_ref end
 					
 					for T_i = 1, utils.GetTableLen(tab_Tabs) do
 					if (tab_Tabs[T_i] == allSettings.SelectedTab) then
@@ -3389,15 +3382,6 @@ ashita.events.register('d3d_endscene', 'd3d_endscene_callback1', function (isRen
     -- isRenderingBackBuffer is a flag that will be true when the game is currently rendering to the back buffer.
 	--and fcw[1].LoggedLobby ~= 1
 	if (fcw[1].PlayerName ~= '---' and fcw[1].LoggedLobby ~= 1 and not fcw[1].Zoning and fcw[1].LoggedIn and #settings.name > 0 and fcw[1].RenderFOs and not fcw[1].HideChat and not uiw.LegacyChatOpen and not fcw[1].Closing and fcw[1].autoHideFade < 1) then
-		if not fcw[3].BigMode then
-			PositionLines(1);
-		--FixAux(1)
-			if fcw[1].RequestAuxFix then FixAux(1) end
-			if allSettings.SecondChat[1] then PositionLines(2); if fcw[2].RequestAuxFix then FixAux(2) end end
-		else
-			if fcw[3].RequestAuxFix then FixAux(3, fcw[3].ChatLines) end
-			PositionLines(3, fcw[3].ChatLines)
-		end
 		if not fcw[1].WasRendered then
 			--print('restored')
 			--PositionLines(1);
@@ -3412,7 +3396,31 @@ ashita.events.register('d3d_endscene', 'd3d_endscene_callback1', function (isRen
 			SetChatOpacity(1,1)
 			SetChatOpacity(1,2)
 			SetChatOpacity(1,3)
+			
 		end
+		if not fcw[3].BigMode then
+			PositionLines(1);
+		--FixAux(1)
+			if fcw[1].RequestAuxFix then FixAux(1) end
+			if allSettings.SecondChat[1] then PositionLines(2); if fcw[2].RequestAuxFix then FixAux(2) end end
+			local updateColor = bit.band(allSettings.rectSettings.fill_color -(fcw[1].autoHideFade * allSettings.rectSettings.fill_color), 0xFF000000)
+			if ro_RectBG[1].settings.fill_color ~= updateColor then
+				--Debug(bit.tohex(updateColor),1,true)
+				ro_RectBG[1]:set_fill_color(math.min(math.max(updateColor,0x00000000)),0xFF000000);
+				SetChatOpacity(math.max(1-fcw[1].autoHideFade,0),1)
+			end
+			if allSettings.SecondChat[1] and ro_RectBG[2].settings.fill_color ~= updateColor then
+				ro_RectBG[2]:set_fill_color(math.min(math.max(updateColor,0x00000000)),0xFF000000);
+				SetChatOpacity(math.max(1-fcw[1].autoHideFade,0),2)
+			end
+		else
+			if fcw[3].RequestAuxFix then FixAux(3, fcw[3].ChatLines) end
+			PositionLines(3, fcw[3].ChatLines)
+		end
+		
+		
+		
+
 		--L_i+1-allSettings.ChatLines == fcwFoId.ChatHead  and not (fcw[1].ChatHead == 1 and C_i == allSettings.ChatLines)
 		-- for C_i = 1, allSettings.ChatLines do
 			-- if not (C_i == fcw[1].ChatHead - 1) then
@@ -4168,7 +4176,9 @@ ashita.events.register('command', 'command_cb', function (e)
 		print('Please Read!\n\nWelcome to FancyChat addon!\n\nThis is addon provides a highly customizable and interactive chat replacemante for Final Fantasy XI.\nPlease take your time to check all the settings by either clicking the cog wheel icon at the bottom of the chat window or by typing the command \"/fancychat settings\".\n\nYou can hover with your mouse over the (i) icons to learn more about each functionality. This addon features some advanced options that can include unwanted behaviors for certain players. Therefore, please pay extra attention to the (i) marked in red to learn about important critical information about such features.\n\nFor further help you can check the addon manual accessible from the settings menu or through the command \"/fancychat manual\".\n\nHave fun!')
 		--AshitaCore:GetChatManager():AddChatMessage(121,false,'\129\159 Quest Completed')
 		--AshitaCore:GetChatManager():AddChatMessage(21,false,' earns a merit point (Total: 4).')
-		return;
+		
+	
+		
 	end
 	if (#args == 2 and args[2] == 'helpdebug') then
 		
@@ -4582,10 +4592,13 @@ function ChangeTab(fo_id, tabName)
 		return b_ChatBufferIdx[fo_id];
 	end)();
 
+	
 	--ResetLines(3, fcw[3].ChatLines)
 	if #fo_Chat[3] > 0 then
-		
+		b_ChatBufferIdx[3] =b_ChatBufferIdx[1]
 		ResetScrolling(3, fcw[3].ChatLines)
+		ResetLines(3, fcw[3].ChatLines)
+		
 		--b_ChatBufferN[3] = SetBufferN(allSettings.SelectedTab);
 	end
 	-- print(b_ChatBufferIdx[fo_id])
@@ -4652,7 +4665,9 @@ function ResetLines(fo_id, ChatLines)
 	end
 	--if allSettings.SelectedTab == 'All' and allSettings.HideCombatFromAll[1] then b_ChatBufferN[fo_id]=b_ChatBufferN_AllAlt;  end
 	fcw[fo_id].ChatShift = allSettings.fontSettings.font_height
-	b_ChatBufferIdx[fo_id] = fo_id < 3 and b_ChatBufferN[fo_id] or b_ChatBufferN[1]
+	if fo_id < 3 then
+		b_ChatBufferIdx[fo_id] = b_ChatBufferN[fo_id]
+	end --b_ChatBufferN[1]
 	fcw[fo_id].PositionLinesRequest = {true,true};
 	--fcw[1].ResetCD = os.clock();
 	--SetLinesVisible(fo_id, false)
@@ -4908,6 +4923,7 @@ function PositionLines(fo_id, ChatLines)
 end
 
 function SetChatOpacity(opacity, fo_id)
+--	if callID and callID ~= fcw[fo_id].OpacityBusy then return end
 	for C_i = 1, #fo_Chat[fo_id] do
 		fo_Chat[fo_id][C_i]:set_opacity(opacity)
 		fo_Aux[fo_id][C_i]:set_opacity(opacity)
@@ -4932,14 +4948,15 @@ function FixAux(fo_id, ChatLines)
 	fcw[fo_id].RequestAuxFix = false;
 end
 
-function UpdateLines(fo_id, message, color, auxMessage, auxColor)
+function UpdateLines(fo_id, message, color, auxMessage, auxColor, ChatLines)
 	fcw[1].BufferBusy = true;
+	if not ChatLines then ChatLines = allSettings.ChatLines end
 	local L_i = fcw[fo_id].ChatHead;
-	for C_i = 1, allSettings.ChatLines-1 do
+	for C_i = 1, ChatLines-1 do
 		fo_Chat[fo_id][L_i]:set_position_y( fcw[fo_id].Anchor_Y - (allSettings.fontSettings.font_height*(C_i)));
 		fo_Aux[fo_id][L_i]:set_position_y( fcw[fo_id].Anchor_Y - (allSettings.fontSettings.font_height*(C_i)));
 		L_i = L_i +1;
-		if (L_i > allSettings.ChatLines) then L_i = 1; end 
+		if (L_i > ChatLines) then L_i = 1; end 
 	end
 	if fo_Chat[fo_id][L_i].settings.font_color ~= color then
 		fo_Chat[fo_id][L_i]:set_font_color(color);
@@ -4955,7 +4972,7 @@ function UpdateLines(fo_id, message, color, auxMessage, auxColor)
 	fo_Chat[fo_id][L_i]:set_opacity(1)
 	fo_Aux[fo_id][L_i]:set_opacity(1)
 	fcw[fo_id].ChatHead = fcw[fo_id].ChatHead-1;
-	if (fcw[fo_id].ChatHead < 1) then fcw[fo_id].ChatHead = allSettings.ChatLines; end 
+	if (fcw[fo_id].ChatHead < 1) then fcw[fo_id].ChatHead = ChatLines; end 
 
 	
 	return
@@ -4972,9 +4989,9 @@ end
 
 function DrawBigMode()
 		--b_ChatBufferIdx[3] = b_ChatBufferIdx[1]
-	if not allSettings.BigModeWarning[1] then
-		AddWarning('This feature is not optimized!\n\nIt should be used mainly to review chat history.\n\nIt will cause stuttering if kept open on combat logs during a fight.',280, allSettings.BigModeWarning)
-	end
+	-- if not allSettings.BigModeWarning[1] then
+		-- AddWarning('This feature is not optimized!\n\nIt should be used mainly to review chat history.\n\nIt will cause stuttering if kept open on combat logs during a fight.',280, allSettings.BigModeWarning)
+	-- end
 	-- local ostime = tostring(os.time())
 	-- print(string.rep('O',tonumber(ostime[#ostime])))
 	ResetAutoHideTimer()
@@ -4986,13 +5003,29 @@ function DrawBigMode()
 	
 	---local buff_idx = 1;
 	--b_ChatBufferIdx[1] =
-	ChatLines = fcw[3].ChatLines
+	local ChatLines = fcw[3].ChatLines
 	--print(fcw[3].Scrolling)and not fcw[3].Scrolling
-	if not fcw[3].BigModePrev  then if #fo_Chat[3] > 0  then ResetLines(3, ChatLines) end b_ChatBufferIdx[3] = 1 end
+	if not fcw[3].BigModePrev then
+		if #fo_Chat[3] > 0  then
+			--ResetLines(3, ChatLines)
+			--b_ChatBufferIdx[3] = 0
+			--b_ChatBufferIdx[3] = b_ChatBufferN[1]
+			--b_ChatBufferIdx[3] = b_ChatBufferIdx[3]-1
+		else
+			--b_ChatBufferIdx[3] = (b_ChatBufferN[1]-b_ChatBufferIdx[3])
+			--print(b_ChatBufferIdx[3])
+			
+			--print((b_ChatBufferN[1]-b_ChatBufferIdx[3]))
+			--b_ChatBufferIdx[3] = b_ChatBufferIdx[1]
+		end
+	else
+		
+	end
+	
 	--Debug(tostring(b_ChatBufferIdx[3]), 1, false)
 	if #fo_Chat[3] == 0 then
 		
-		fcw[3].ChatShift = allSettings.fontSettings.font_height;
+		--print('h')
 		for L_i = 1, ChatLines do
 			table.insert(fo_Chat[3], gdi:create_object(allSettings.fontSettings, false));
 			table.insert(fo_Aux[3], gdi:create_object(allSettings.fontSettings, false));
@@ -5244,8 +5277,10 @@ function DrawBigMode()
 				ResetScrolling(3, ChatLines);
 			end
 		end
-
+		imgui.End()
 	end
+	
+	
 	
 	if (fcw[3].Scrolling and fcw[3].ScrollUpRequest) and not fcw[1].BufferBusy
 	then
@@ -5261,7 +5296,7 @@ function DrawBigMode()
 		fcw[3].ScrolledBack = fcw[3].ScrolledBack +1;
 			--print('hello')
 			--if fcw[1].ScrolledBack > utils.GetTableLen(b_ChatBuffer[b_ChatBufferMode][2].text)-allSettings.ChatLines-(b_ChatBufferN-b_ChatBufferIdx) then fcw[1].ScrolledBack = fcw[1].ScrolledBack -1 end
-
+		--b_ChatBufferIdx[3] = b_ChatBufferN[1]
 	elseif (fcw[3].Scrolling and fcw[3].ScrollDownRequest) and not fcw[1].BufferBusy
 	then 
 		fcw[3].ScrollDownRequest = false;
@@ -5278,17 +5313,33 @@ function DrawBigMode()
 			fcw[3].Scrolling = false;
 			ResetLines(3, ChatLines);
 		end
+		--b_ChatBufferIdx[3] = b_ChatBufferN[1]
 	elseif not fcw[3].BigModePrev or (not fcw[3].Scrolling and b_ChatBufferIdx[3] < b_ChatBufferN[1]) then
-		ResetLines(3, ChatLines)
+		--ResetLines(3, ChatLines)
 		--b_ChatBufferIdx[3] = b_ChatBufferN[1]
 		--print('hello')
 		--print(b_ChatBufferIdx[3])
 		--print(fcw[3].BigModePrev)
+		if  b_ChatBufferN[1] - b_ChatBufferIdx[3] > 0 then
+			UpdateLines(3,
+				b_ChatBuffer[b_ChatBufferMode[1]][2].text[utils.GetTableLen(b_ChatBuffer[b_ChatBufferMode[1]][2].text) -(b_ChatBufferN[1]-b_ChatBufferIdx[3]-1)],
+				b_ChatBuffer[b_ChatBufferMode[1]][2].color[utils.GetTableLen(b_ChatBuffer[b_ChatBufferMode[1]][2].text) -(b_ChatBufferN[1]-b_ChatBufferIdx[3]-1)],
+				b_ChatBuffer[b_ChatBufferMode[1]][2].auxText[utils.GetTableLen(b_ChatBuffer[b_ChatBufferMode[1]][2].text) -(b_ChatBufferN[1]-b_ChatBufferIdx[3]-1)],
+				b_ChatBuffer[b_ChatBufferMode[1]][2].auxColor[utils.GetTableLen(b_ChatBuffer[b_ChatBufferMode[1]][2].text) -(b_ChatBufferN[1]-b_ChatBufferIdx[3]-1)],
+				ChatLines
+			);
+			b_ChatBufferIdx[3] = b_ChatBufferIdx[3]+1
+		else
+			ResetLines(3, ChatLines)
+		end
+							--fcw[1].ChatShift = allSettings.fontSettings.font_height;
+		--b_ChatBufferIdx[3] = b_ChatBufferIdx[3]+1;
+		
 	end
-	b_ChatBufferIdx[3] = b_ChatBufferN[1]
+	
 	fcw[3].RequestAuxFix = true
 	--Debug(tostring(b_ChatBufferIdx[3]), 
-	imgui.End()
+	
 	--ro_BigMode:set_visible(false)
 
 end
