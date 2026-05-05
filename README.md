@@ -146,3 +146,12 @@ logs/
 ```
 
 Logs are written to disk **on demand** — either via `/fchat savelogs` or the **Save Chat Logs** button in the Tools tab. They are *not* auto-saved on unload (the unload handler only persists settings and optionally re-injects the buffer into the legacy chat if **Auto-Dump Chat** is enabled).
+<br></br>
+
+### Credits
+
+A heartfelt thank you to:
+
+- The **[Ashita](https://www.ashitaxi.com/) team** — for all the help and patience answering my questions while building this addon, and for the framework that makes it possible in the first place.
+- **atm0s** — for the `targets.lua` script that powers Fancychat's actor / target resolution.
+- **Thorny** — for the gdifonts library that powers the custom-font texture rendering pipeline.
