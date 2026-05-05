@@ -93,7 +93,6 @@ function object:render(sprite)
     end
 end
 
-
 function object:set_width(width)
     if (width ~= self.settings.width) then
         self.is_dirty = true;

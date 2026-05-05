@@ -207,7 +207,7 @@ function M.register()
 		ResetAutoHideTimer()
 		set.alertList     = utils.stringsplit(allSettings.alertwords, ',')
 		set.alertBuffer[1] = allSettings.alertwords
-		par.customFilters = utils.LoadCustomFilters()
+		par.customFilters = utils.LoadCustomFilters(allSettings.SelectedCombatFilter)
 
 		fcw[1].PlayerName = allSettings.PlayerName
 

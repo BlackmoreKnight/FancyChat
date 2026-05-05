@@ -47,8 +47,16 @@ local par           = state.par
 local b             = state.b
 local allSettings   = state.allSettings
 local defaultColors = state.defaultColors
+local colorDesc     = state.colorDesc
 
 local M = {}
+
+-- Module-level cache of the combatfilters/ directory listing.  Populated
+-- lazily on the first frame the CL Filters tab is drawn so the dir scan
+-- doesn't run every frame.  The "Refresh" button next to the picker
+-- re-scans on demand (e.g. after the user adds / renames a .txt file
+-- through the OS).
+local cachedCombatFilterFiles = nil
 
 function M.draw_settings_panel()
 
@@ -340,7 +348,16 @@ function M.draw_settings_panel()
 			for key in pairs(allSettings.colors) do
 				table.insert(keys, key)
 			end
-			table.sort(keys)
+			-- Sort by the human-readable label from colorDesc (the [1]
+			-- field of each entry in defaults.color_descriptions) so the
+			-- left-pane row order matches what the user actually reads,
+			-- not the underlying internal key.  Falls back to the raw key
+			-- if a color slot is missing a description entry.
+			table.sort(keys, function(a, b)
+				local la = colorDesc[a] and colorDesc[a][1] or a
+				local lb = colorDesc[b] and colorDesc[b][1] or b
+				return la < lb
+			end)
 			local skip = {'combat', 'combatspell', 'cexi'}
 			set.colorTextW = 0
 			for _, key in ipairs(keys) do
@@ -863,6 +880,13 @@ function M.draw_settings_panel()
 				end
 			end
 			AddTooltip('Requires second chat window enabled.', 4)
+			-- "Enable FC color marking" toggle is hidden for now —
+			-- the addon currently relies on FC marking being on for
+			-- correct combat / actor highlighting and legacy-escape
+			-- handling.  The underlying allSettings.EnableFCColorMarking
+			-- flag is still respected throughout the codebase, so this
+			-- block can be re-enabled later without other changes.
+			--[[
 			imgui.Dummy({0, 5})
 			imgui.Dummy({5, 0}) imgui.SameLine()
 			if imgui.Checkbox('Enable FC color marking', {allSettings.EnableFCColorMarking[1]}) then
@@ -870,6 +894,7 @@ function M.draw_settings_panel()
 				SaveSettings()
 			end
 			AddTooltip('Uses and FC color formatting (Recommended). Disable to try use default color markings.', 4)
+			]]
 			imgui.Dummy({0, 5})
 			imgui.Dummy({5, 0}) imgui.SameLine()
 			if imgui.Checkbox(allSettings.heartEmoji[1] and ' <3' or ' ', {allSettings.heartEmoji[1]}) then
@@ -888,15 +913,67 @@ function M.draw_settings_panel()
 			imguiWrap.BeginChild('##Filters Child',
 				{(setsizex * 3.8 / 3.9) - (12 * (1 - (setsizex * 3.8 / 1920))) - 3, setsizey * 2.7 / 2.8 - 60}, true)
 			imgui.PushTextWrapPos(imgui.GetWindowWidth() * 0.96)
-			imgui.TextWrapped('You can filter combat messages by editing the custom_combat_filters file and using words that would appear in unwanted messages.\n(e.g. effect wears off)\n\n> Words must be present in the original game combat message\n  (i.e. not words modified by addons)\n> Word matching is non case sensitive\n> More details in the custom_combat_filters file\n\n!!! Very long lists could cause performance issues !!!')
+			imgui.TextWrapped('You can filter combat messages by adding words to a filter file in the combatfilters folder. Each filter file is a plain-text list of words that would appear in unwanted messages.\n(e.g. effect wears off)\n\n> Words must be present in the original game combat message\n  (i.e. not words modified by addons)\n> Word matching is non case sensitive\n> More details in each filter file\n\n!!! Very long lists could cause performance issues !!!')
 			imgui.Dummy({0, 5})
-			if imgui.Button('Edit Custom Filters') then
-				local filepath = addon.path..'\\custom_combat_filters.txt'
+
+			-- Combat-filter file picker.  Lists every .txt under
+			-- combatfilters/ and lets the user pick one as the active
+			-- filter set; selection is persisted in
+			-- allSettings.SelectedCombatFilter and reloaded on addon
+			-- start (see lib/lifecycle.lua).  The list itself is cached
+			-- in `cachedCombatFilterFiles` to avoid running the dir
+			-- scan every frame — the Refresh button re-scans on demand.
+			if cachedCombatFilterFiles == nil then
+				cachedCombatFilterFiles = utils.ListCombatFilters()
+			end
+			local filterFiles = cachedCombatFilterFiles
+			imgui.Text('Active filter file:')
+			imgui.SameLine()
+			-- Constrain the combo to ~40% of the panel width so the
+			-- Refresh button (and its tooltip target) stays visible
+			-- inside the CL Filters child region.  SetNextItemWidth
+			-- only affects the immediately-following BeginCombo call.
+			imgui.SetNextItemWidth(setsizex * 0.4)
+			if imgui.BeginCombo('##SelectedCombatFilter', allSettings.SelectedCombatFilter, ImGuiComboFlags_None) then
+				if #filterFiles == 0 then
+					imgui.TextDisabled('(no .txt files in combatfilters/)')
+				else
+					for fi = 1, #filterFiles do
+						if imgui.Selectable(filterFiles[fi], filterFiles[fi] == allSettings.SelectedCombatFilter) then
+							allSettings.SelectedCombatFilter = filterFiles[fi]
+							par.customFilters = utils.LoadCustomFilters(allSettings.SelectedCombatFilter)
+							SaveSettings()
+						end
+					end
+				end
+				imgui.EndCombo()
+			end
+			-- Refresh BEFORE the tooltip icon — AddTooltip lowers the
+			-- cursor Y by `offset` to vertically centre its little
+			-- info icon against the previous widget, and that lowered
+			-- Y carries through to any following imgui.SameLine() calls,
+			-- pushing the button below the combo's baseline.  Drawing
+			-- the button first keeps it aligned with the combo.
+			imgui.SameLine()
+			if imgui.Button('Refresh##CombatFilterFiles') then
+				cachedCombatFilterFiles = utils.ListCombatFilters()
+			end
+			AddTooltip('Pick which file in the combatfilters folder to use as the active filter list.\n\nRefresh re-scans combatfilters/ for newly-added or renamed .txt files.', 4)
+			imgui.Dummy({0, 5})
+
+			if imgui.Button('Edit Selected Filter') then
+				local filepath = addon.path..'\\combatfilters\\'..allSettings.SelectedCombatFilter
 				os.execute('start "" "'..filepath..'"')
 			end
-			if imgui.Button('Reload Custom Filters') then
-				par.customFilters = utils.LoadCustomFilters()
+			imgui.SameLine()
+			if imgui.Button('Reload Selected Filter') then
+				par.customFilters = utils.LoadCustomFilters(allSettings.SelectedCombatFilter)
 			end
+			imgui.SameLine()
+			if imgui.Button('Open Folder') then
+				os.execute('start "" "'..addon.path..'\\combatfilters\\"')
+			end
+			AddTooltip('Open the combatfilters/ folder in Explorer to add or rename filter files.', 4)
 			imgui.Separator()
 			imgui.Dummy({0, 5})
 			if imgui.Checkbox('Enable Combat Log chat filters', {allSettings.CustomFilters[1]}) then

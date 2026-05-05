@@ -60,7 +60,6 @@ local function Error(text)
     print(chat.header('GdiFonts') .. highlighted .. '\30\01');
 end
 
-
 local checkedFonts = T{};
 local function GetFontAvailable(renderer, fontName)
     local result = checkedFonts[fontName];
@@ -93,7 +92,6 @@ local function ValidateFont(renderer, font)
 end
 
 local object = {};
-
 
 function object:get_texture()
     if (self.is_dirty == true) then

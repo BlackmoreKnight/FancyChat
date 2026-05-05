@@ -37,16 +37,13 @@ local fcw         = state.fcw
 local allSettings = state.allSettings
 
 -- Action / ability names get wrapped in delimiters that HandleActors
--- later converts to "[ ]" while colourising.  When the user has FC
--- colour marking off, HandleActors doesn't run, so emit "[ ]" up
--- front instead of the raw "\ /" — otherwise the user sees the
--- delimiter characters in the chat line.
+-- later converts to "[ ]" while colourising.  combat.lua only runs
+-- when CompactCombat is enabled, and parser.lua force-activates the
+-- FC pipeline for combat-with-compact lines (so HandleActors WILL
+-- run and convert "\ /" to "[ ]"), so we can unconditionally emit
+-- the "\ /" delimiters here.
 local function wrap_action(s)
-	if allSettings.EnableFCColorMarking[1] then
-		return '\\'..s..'/'
-	else
-		return '['..s..']'
-	end
+	return '\\'..s..'/'
 end
 
 -- Localised stdlib + utility lookups (#12, #13).  LuaJIT inlines local

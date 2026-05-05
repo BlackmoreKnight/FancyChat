@@ -10,7 +10,7 @@
 	  1. Resets per-message parser state on `par`.
 	  2. Picks a base color and tab from utils_modesDA[mode+1].
 	  3. Filters auto-translate / hidden / blocked messages.
-	  4. Calls CleanText to strip control bytes and re-encode SJIS.
+	  4. Calls CleanTextFunctionNew to strip control bytes and re-encode SJIS.
 	  5. For combat-mode lines, delegates to CombatText / CombatSpellText
 	     (in lib/combat.lua) which return reformatted text with
 	     iconography substitutions.
@@ -24,8 +24,8 @@
 
 	Helper functions kept here because they only make sense in the
 	parser context:
-	  CleanText        Byte-pass cleaner: strips colors, FFXI bytes,
-	                   SJIS multibytes, optional emoji substitution.
+	  CleanTextFunctionNew  Byte-pass cleaner: strips colors, FFXI bytes,
+	                        SJIS multibytes, optional emoji substitution.
 	  HandleSpecial    Find the [prefix..suffix] span in a chat line
 	                   and return an MCList tuple to colorize it.
 	  CheckSpecial     Mode-specific dispatcher for HandleSpecial
@@ -44,10 +44,11 @@
 	                   the other helpers; will move to render module
 	                   if/when render is extracted.
 
-	All top-level helpers (CleanText, HandleSpecial, CheckSpecial,
-	HandleActors, HELMtext, FindHELM, SetBufferN, SetTargetPosX,
-	parseThis) are exposed as globals via `_G.X = M.X` so that other
-	modules and the render loop continue to call them by name.
+	All top-level helpers (CleanTextFunctionNew, HandleSpecial,
+	CheckSpecial, HandleActors, HELMtext, FindHELM, SetBufferN,
+	SetTargetPosX, parseThis) are exposed as globals via `_G.X = M.X`
+	so that other modules and the render loop continue to call them
+	by name.
 ]]
 
 require('common')
@@ -121,107 +122,17 @@ end)()
 local M = {}
 
 -- ===================================================================
--- CleanText: byte-level pass over an incoming chat line.  For combat
--- modes it does the minimal SJIS suffix scrub; for everything else it
--- runs the full ReplaceCPs / CleanCPs / CPs2text pipeline that
--- normalizes FFXI's multibyte payload into UTF-8.  Also drives the
--- DialogPromptStart timer for NPC dialog modes (150/151) and appends
--- a debug line into b.LogBuffer for off-line analysis.
--- ===================================================================
-function M.CleanText(text, mode)
-
-	local addLog = true
-	if not string_find(mode, '^shout')
-		and not string_find(mode, '^unity')
-		and par.MessageMode ~= 152
-		and not string_find(mode, '^linkshell') then
-		addLog = true
-	end
-
-	if (par.MessageMode == 150 or par.MessageMode == 151) and par.LastMsgInConv then
-		uiw.DialogPromptStart = os.clock()
-	end
-	if par.MessageMode == 150 or par.MessageMode == 151 then
-		par.LastMsgInConv = par.InEvent and true or false
-	end
-
-	-- Build a byte-by-byte representation for the debug log (#4: use
-	-- string_byte(s, i) directly instead of allocating a 1-char substring
-	-- per byte; ~3x faster on long messages).
-	local cpString = {}
-	for idx = 1, #text do
-		table_insert(cpString, string_byte(text, idx))
-	end
-
-	local dtest = ''
-	for d = 1, #text do
-		dtest = dtest..tostring(cpString[d])..','..string_sub(text, d, d)..'|'
-	end
-	if addLog then table_insert(b.LogBuffer, 'Char-Int match: '..dtest) end
-
-	if #cpString > 0 then
-		if addLog then table_insert(b.LogBuffer, text) end
-		if addLog then table_insert(b.LogBuffer, 'Mode: '..mode..' Channel: '..tostring(par.MessageMode)) end
-		if addLog then table_insert(b.LogBuffer, '----------') end
-	end
-
-	-- Trim the LogBuffer in chunks of 4 once it exceeds 100 entries.
-	if #b.LogBuffer > 100 then
-		for _ = 1, 4 do
-			table.remove(b.LogBuffer, 1)
-		end
-	end
-
-	if not string_find(mode, 'combat') or par.MessageMode == 80 or not allSettings.CompactCombat[1] then
-		while true do
-			local hasN = text:endswith('\n')
-			local hasR = text:endswith('\r')
-			if not hasN and not hasR then break end
-			if hasN then text = text:trimend('\n') end
-			if hasR then text = text:trimend('\r') end
-		end
-		text = text:strip_colors()
-
-		-- (#4) string_byte(s, i) avoids the per-byte substring alloc.
-		local cps = {}
-		for idx = 1, #text do
-			table_insert(cps, string_byte(text, idx))
-		end
-		cps = utils.ReplaceCPs(cps)
-		cps = utils.CleanCPs(cps)
-		local cleantext = utils.CPs2text(cps, utils.UTF8chars)
-		text = cleantext:trimex()
-		if allSettings.heartEmoji[1] then text = string_gsub(text, '<3', utf8.char(0x2764)) end
-	else
-		if text:sub(-2, -1) == '\127\49' then
-			text = text:sub(0, -3)
-		end
-		text = text:strip_colors()
-		text = text:gsub('\32\171', '\32')
-		text = text:gsub('\129\168', '')
-	end
-	return text
-end
-_G.CleanText = M.CleanText
-
--- ===================================================================
--- CleanTextFunctionNew: drop-in replacement for M.CleanText that uses
--- the single-pass utils.TranscodeFFXI byte walker instead of the
--- four-pass strip_colors → ReplaceCPs → CleanCPs → CPs2text pipeline.
+-- CleanTextFunctionNew: byte-level pass over an incoming chat line.
+-- Uses the single-pass utils.TranscodeFFXI byte walker for SJIS → UTF-8
+-- transcoding, glyph remapping, and codepoint replacement.
 --
--- Behaviour preserved:
+-- Responsibilities:
 --   • Conversation-prompt tracking (uiw.DialogPromptStart on
 --     mode-150/151 dialog-end transitions).
 --   • Compact-combat fast path: arrow glyph dropped when mode
---     contains 'combat', channel is not 80, and CompactCombat is
---     enabled.  Combat lines also skip outer-whitespace trim
---     (matches the original gsub-only fast path).
+--     contains 'combat', channel is not 80, and CompactCombat is on.
+--     Combat lines skip outer-whitespace trim.
 --   • Heart emoji (<3 → ❤) on the full path.
---
--- Behaviour changed:
---   • LogBuffer breadcrumbs are no longer this function's concern;
---     callers that want the per-byte char/int dump should do it
---     explicitly before calling.
 -- ===================================================================
 function M.CleanTextFunctionNew(text, mode)
 	-- 1. Conversation tracking.
@@ -233,17 +144,32 @@ function M.CleanTextFunctionNew(text, mode)
 	end
 
 	-- 2. Decide path.
+	local isCombat = string_find(mode, 'combat')
 	local compactCombat =
-		string_find(mode, 'combat')
+		isCombat
 		and par.MessageMode ~= 80
 		and allSettings.CompactCombat[1]
 
-	-- When FC color marking is OFF the addon's own MC pipeline is
-	-- skipped, so the legacy in-band FFXI palette escapes
-	-- (\x1E\NN) are the only colour information left.  Translate
-	-- them into MC tokens here so the renderer still paints them
-	-- per FFXI's intent rather than drawing a flat single colour.
-	local respectLegacyColors = not allSettings.EnableFCColorMarking[1]
+	-- FC colour marking is "active" when globally enabled OR when
+	-- the line is a combat message handled by compact combat
+	-- (which depends on the FC pipeline for actor highlighting).
+	-- Mirrors the same flag computed in parseThis.
+	local fcMarkingActive = allSettings.EnableFCColorMarking[1]
+		or (isCombat and allSettings.CompactCombat[1])
+
+	-- Decide whether the legacy in-band palette escapes
+	-- (\x1E\NN, \x1F\NN) should be PRESERVED through CleanTextFunctionNew so
+	-- a downstream step can translate them to MC tokens:
+	--   • FC marking inactive  → preserve (legacy escapes are the
+	--     only colour information left).
+	--   • FC marking active + channel-default colour is pure white
+	--     → preserve (FC has no opinion about this channel's
+	--     colour, so let inline escapes through).
+	--   • FC marking active + channel colour non-white
+	--     → drop (FC's per-channel colour owns the line).
+	local channel_col_default = utils_modesDA[par.MessageMode + 1][3]
+	local respectLegacyColors = (not fcMarkingActive)
+		or (channel_col_default == 0xFFFFFFFF)
 
 	-- 3. Single-pass transcode.
 	local result = utils.TranscodeFFXI(text, compactCombat, respectLegacyColors)
@@ -760,6 +686,31 @@ parseThis = function(e, e_message)
 	local mdRow = utils_modesDA[par.MessageMode + 1]
 	par.LastMode = mdRow[2]
 	col          = mdRow[3]
+
+	-- FC colour marking is "active" for this message when the user
+	-- has it globally enabled, OR when the line is a combat-mode
+	-- message being reformatted by compact combat (the compact
+	-- formatter relies on FC's MC pipeline for actor highlighting,
+	-- so we force it ON for combat regardless of the global flag).
+	-- Anywhere downstream that previously gated on the raw
+	-- allSettings.EnableFCColorMarking[1] should now check
+	-- fcMarkingActive instead.
+	local fcMarkingActive = allSettings.EnableFCColorMarking[1]
+		or (string_find(par.LastMode, 'combat') and allSettings.CompactCombat[1])
+
+	-- Whether to honour legacy in-band palette escapes
+	-- (\x1E\NN, \x1F\NN).  TRUE means the wrap-loop will run
+	-- translateLegacyColors on each wrapped line.
+	--   • Always TRUE when fcMarkingActive is FALSE — legacy
+	--     escapes are the only colour info left.
+	--   • Also TRUE when fcMarkingActive is TRUE but the channel-
+	--     default colour from modesDA is pure white — FC has no
+	--     opinion about the channel's colour, so we let inline
+	--     escapes through and they coexist with FC's MCList /
+	--     HandleActors highlights.
+	-- Mirrors the same logic used in CleanTextFunctionNew.
+	local respectLegacyColors = (not fcMarkingActive)
+		or (mdRow[3] == 0xFFFFFFFF)
 
 	-- (#10) Direct prefix comparison via string_sub is ~3× faster than
 	-- pattern :find for fixed prefixes.  Order matters: combatspell_
@@ -1304,59 +1255,22 @@ parseThis = function(e, e_message)
 				end
 			end
 
-			-- When FC colour marking is OFF and CleanTextFunctionNew
-			-- preserved FFXI's native \x1E\NN escapes through the
-			-- wrap, translate them into MC tokens here — AFTER the
-			-- line has been cut to its display width, so the 14-byte
-			-- MC tokens can never end up split across a line.
-			--
-			-- active_legacy_color carries colour state from the
-			-- previous wrapped line into this one, so a colour run
-			-- that began before a wrap point continues correctly on
-			-- the continuation line.  translateLegacyColors returns
-			-- the new state to carry into the next iteration.
-			if not allSettings.EnableFCColorMarking[1] then
-				local mctext = buf1.text[#buf1.text]
-				if mctext then
-					-- Cheap-skip: only call the translator when the
-					-- line might have legacy escapes OR a colour
-					-- state is being carried in from the previous
-					-- wrapped line.
-					if active_legacy_color
-						or mctext:find('\30', 1, true)
-						or mctext:find('\31', 1, true) then
-						local new_text, new_state = utils.translateLegacyColors(mctext, active_legacy_color)
-						mctext = new_text
-						active_legacy_color = new_state
-					end
-
-					-- Paint the FancyChat timestamp prefix in pure
-					-- white on the first wrapped line of a message.
-					-- The timestamp is always emitted by parseThis
-					-- as the first `#ts` bytes of newText, and only
-					-- on line 1 of any message — wrap it in a white
-					-- MC opener and a reset so the rest of the line
-					-- continues in whatever colour applies.
-					if L_i == 1 and allSettings.timeStamp[1] and #ts > 0 and #mctext >= #ts then
-						mctext = '\\§FFFFFFFFç\\'
-							..string_sub(mctext, 1, #ts)
-							..'\\§--------ç\\'
-							..string_sub(mctext, #ts + 1)
-					end
-
-					buf1.text[#buf1.text] = mctext
-				end
-			end
-
 			-- Apply all accumulated MCList entries: sort by start, then
 			-- splice MC escape sequences into the text.  Each escape
 			-- adds 28 bytes, so the i-th insertion at index k must be
 			-- offset by 28*(i-1).  Then HandleActors paints actor names.
-			-- Skipped entirely when the user has disabled FC colour
-			-- marking — the line stays as the plain post-CleanText text
-			-- the table_insert above wrote, which the renderer draws in
-			-- the single buf1.color[i] colour.
-			if allSettings.EnableFCColorMarking[1] and (#MCList > 0 or par.handled_actors) then
+			-- Skipped when fcMarkingActive is false (FC marking off
+			-- AND not a combat-with-compact line) — the line stays
+			-- as the plain post-CleanTextFunctionNew text the table_insert above
+			-- wrote, which the renderer draws in the single
+			-- buf1.color[i] colour.
+			--
+			-- MUST run BEFORE legacy-escape translation: the byte
+			-- offsets in MCList reference positions in the cleaned
+			-- text where 2-byte \x1E\NN / \x1F\NN escapes are still
+			-- present.  If we expanded those to 14-byte MC tokens
+			-- first, the MCList offsets would be wrong.
+			if fcMarkingActive and (#MCList > 0 or par.handled_actors) then
 				local mctext = buf1.text[#buf1.text]
 				table.sort(MCList, function(a, b) return a[1] < b[1] end)
 				for i = 1, #MCList do
@@ -1377,11 +1291,53 @@ parseThis = function(e, e_message)
 
 			-- Discord emoji painter — also gated by FC colour marking
 			-- because emojiCols emits MC escapes around every emoji.
-			if allSettings.EnableFCColorMarking[1] and set.isCEXI and isDiscordText then
+			if fcMarkingActive and set.isCEXI and isDiscordText then
 				local mctext = buf1.text[#buf1.text]
 				mctext = utils_emojiCols(mctext)
 				if #mctext < 4096 then
 					buf1.text[#buf1.text] = utils_MCCheck(mctext)
+				end
+			end
+
+			-- Legacy in-band palette escape translation.  Runs when
+			-- respectLegacyColors is TRUE — either FC marking is
+			-- inactive (legacy escapes are the only colour info) or
+			-- FC marking is active but this channel's default colour
+			-- is white (so FC has no opinion on it and we let inline
+			-- escapes through, coexisting with FC's MC tokens).
+			--
+			-- gsub on \x1E and \x1F doesn't touch existing MC tokens
+			-- (they contain neither byte), so running this AFTER the
+			-- MCList splice is safe.
+			--
+			-- active_legacy_color carries colour state from the
+			-- previous wrapped line into this one so a colour run
+			-- begun before a wrap point continues correctly on the
+			-- continuation line.
+			if respectLegacyColors then
+				local mctext = buf1.text[#buf1.text]
+				if mctext and (active_legacy_color
+					or mctext:find('\30', 1, true)
+					or mctext:find('\31', 1, true)) then
+					local new_text, new_state = utils.translateLegacyColors(mctext, active_legacy_color)
+					buf1.text[#buf1.text] = new_text
+					active_legacy_color = new_state
+				end
+			end
+
+			-- White-paint the FancyChat timestamp prefix on the first
+			-- wrapped line of a message — but only when FC marking
+			-- is INACTIVE.  When FC marking is active the MCList
+			-- block above already inserts a white MC entry for the
+			-- timestamp, so doing it here would be redundant.
+			if not fcMarkingActive
+				and L_i == 1 and allSettings.timeStamp[1] and #ts > 0 then
+				local mctext = buf1.text[#buf1.text]
+				if mctext and #mctext >= #ts then
+					buf1.text[#buf1.text] = '\\§FFFFFFFFç\\'
+						..string_sub(mctext, 1, #ts)
+						..'\\§--------ç\\'
+						..string_sub(mctext, #ts + 1)
 				end
 			end
 
@@ -1395,7 +1351,20 @@ parseThis = function(e, e_message)
 				end
 				if par.isCustom then par.LastMode = par.LastMode..'C' end
 				table_insert(buf1.mode, tostring(par.MessageMode)..'|'..par.LastMode)
-				if type(col) == 'number' then
+				-- Force the combat-line base colour to white when FC
+				-- colour marking is globally OFF AND compact combat
+				-- is OFF.  In that combination the user wants combat
+				-- lines to be plain white text with no per-channel
+				-- damage tint.  When compact combat is ON, FC marking
+				-- is force-active for combat (see fcMarkingActive
+				-- above) so the line keeps its normal channel colour
+				-- and the FC pipeline paints actor highlights.
+				local force_white = string_find(par.LastMode, 'combat')
+					and not allSettings.EnableFCColorMarking[1]
+					and not allSettings.CompactCombat[1]
+				if force_white then
+					table_insert(buf1.color, 0xFFFFFFFF)
+				elseif type(col) == 'number' then
 					table_insert(buf1.color, col)
 				else
 					table_insert(buf1.color, 0xFFFFFFFF)
