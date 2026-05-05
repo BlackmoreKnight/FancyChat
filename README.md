@@ -153,5 +153,5 @@ Logs are written to disk **on demand** — either via `/fchat savelogs` or the *
 A heartfelt thank you to:
 
 - The **[Ashita](https://www.ashitaxi.com/) team** — for all the help and patience answering my questions while building this addon, and for the framework that makes it possible in the first place.
-- **atm0s** — for the `targets.lua` script that powers Fancychat's actor / target resolution.
-- **Thorny** — for the gdifonts library that powers the custom-font texture rendering pipeline.
+- **atom0s** — for the `targets.lua` script that powers Fancychat's actor / target resolution and the infinite patience to guide me through all the RE nuances.
+- **Thorny** — for the gdifonts library that powers the custom-font texture rendering pipeline and the invaluable help I received despite all my dull moments.
