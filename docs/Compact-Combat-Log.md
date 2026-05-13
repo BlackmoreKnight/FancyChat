@@ -1,6 +1,6 @@
 # Compact Combat Log
 
-When **Settings → Extra → "Compact Combat Log"** is enabled, Fancychat reformats every combat message into a tighter layout that uses custom icons (from the bundled `gameicons.ttf`) for the action type and a configurable separator between actor and damage.
+When **Settings → Extra → "Compact Combat Log"** is enabled, Fancychat reformats every combat message into a tighter layout that uses custom icons (from the bundled `gameicons.ttf`) for the action type and a small arrow glyph between actor and damage.
 
 ## Format
 
@@ -12,7 +12,7 @@ Eleanor [sword-icon] Treant Sapling > 23 DMG
 
 Where:
 - `[sword-icon]` is a custom icon from the bundled `gameicons.ttf` font (not a regular emoji)
-- `>` is the separator between actor and damage (Settings → Chat Window → "Combat Split Char" — defaults to `>`)
+- `>` is a fixed arrow glyph (also drawn from `gameicons.ttf`) separating the actor from the damage
 - `Eleanor` and `Treant Sapling` are coloured according to who they are (see below)
 
 ## Action icons

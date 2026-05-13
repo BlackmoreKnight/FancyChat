@@ -22,7 +22,12 @@ If you want Fancychat to load automatically at every game launch, add `/addon lo
 
 ## Updating
 
-Replace the contents of the `fancychat/` folder with the new release. Your settings, palette, notepad, and combat-filter files live in subfolders that the new version preserves — see [Data Storage](Data-Storage.md).
+1. Your settings and Notepad notes live separately in `Ashita/config/addons/fancychat/<character>/settings.json`, so they're preserved automatically across updates — nothing to do.
+2. Your **custom color palettes** live in `addons/fancychat/chatcolors/` and your **custom combat filters** in `addons/fancychat/combatfilters/`. If you've created any, **back those two folders up** before overwriting the addon folder — depending on how you extract the new release, they may be overwritten or deleted.
+3. Replace the contents of `Ashita/addons/fancychat/` with the new release.
+4. Drop your backed-up `chatcolors/` and `combatfilters/` files back in if they got removed.
+
+See [Data Storage](Data-Storage.md) for the full on-disk layout.
 
 ## Uninstall
 

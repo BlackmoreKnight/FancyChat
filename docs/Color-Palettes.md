@@ -14,23 +14,24 @@ Hover the small **(i)** icons next to each label for a description of which mess
 
 The **Reset Colors** button restores the entire palette to the addon defaults.
 
-## Sorting
-
-The left-pane row order is sorted by the human-readable **label** of each color (not the internal key name). Adding a new color slot is automatically picked up at runtime — its label drives its position in the list.
-
 ## Sharing palettes
+
+Fancychat treats colorsets as named files you can save, import, and share freely. The export/import flow is dialog-based, so you can keep several different palettes per character (e.g. one for combat-heavy events, one for social play) and swap between them on demand.
 
 ### Export
 
-Click **Export Colors**. Fancychat writes a plain-text file:
+1. Click **Export Colors**. A dialog appears with a **Filename** field.
+2. The filename is pre-filled with a suggestion based on your character name: `colorset_<your character>_1`, `colorset_<your character>_2`, etc. (auto-incrementing — Fancychat won't suggest a name that's already in use).
+3. Edit the filename if you want something more descriptive (e.g. `colorset_Eleanor_combat` or `colorset_party_friendly`).
+4. Click **Save**. The file is written to:
 
 ```
-addons/fancychat/chatcolors/colorset_<your character>
+addons/fancychat/chatcolors/<filename>
 ```
 
 The `chatcolors/` subfolder is created automatically the first time you export. The file format is one `key,value` line per color slot, where the value is a hex ARGB number.
 
-Example:
+Example file contents:
 ```
 tell,0xffd35aff
 party,0xff66e7fe
@@ -38,18 +39,22 @@ combat,0xffdcf1fc
 ...
 ```
 
-Plain text means it can be inspected, version-controlled, or shared.
+Plain text means it can be inspected, edited in any text editor, or shared.
 
 ### Import
 
-Click **Import Colors**. Fancychat reads the file matching your **current character's name**: `chatcolors/colorset_<character>`. Missing values fall through to the addon defaults.
+1. Click **Import Colors**. A dialog appears with a list of **every** `.txt`-less colorset file currently in `addons/fancychat/chatcolors/` — yours, other characters', or ones you've dropped in from elsewhere.
+2. Click an entry in the list to select it.
+3. Click **Load**. Fancychat replaces your current palette with the colors in that file.
+
+Missing values in the file fall through to the addon defaults — useful if a friend exports their palette before a new color slot existed.
 
 ### Sharing across characters or with another player
 
-Because the file is keyed by character name, you have two routes:
+Because Import lets you load any file in the folder, sharing is as simple as **copying the file in**:
 
-1. **Same player, different character** — copy `colorset_OldChar` to `colorset_NewChar` while logged in as `NewChar`, then click Import.
-2. **Send to another player** — share the file. The recipient renames it to match their own character name (e.g. `colorset_Friend`) and drops it into their `chatcolors/` folder, then clicks Import.
+- **Same player, different character** — open `chatcolors/` and you'll see all your saved colorsets; from any character, just hit Import and pick the one you want.
+- **Receive a palette from another player** — drop their `colorset_*` file into your `chatcolors/` folder, open Settings → Font Colors → Import Colors, and pick it from the list. No renaming required.
 
 ## See also
 

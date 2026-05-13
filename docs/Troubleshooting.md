@@ -81,7 +81,7 @@ If Fancychat misbehaves on load and you suspect the settings file:
 3. Re-launch — Fancychat falls back to defaults.
 4. Reconfigure via the Settings panel.
 
-You'll lose Notepad contents and your dropdown selections (active filter file, notification, etc.) but **not** your color palette (which lives in `addons/fancychat/chatcolors/colorset_<character>` — a separate file).
+You'll lose Notepad contents and your dropdown selections (active filter file, notification, etc.) but **not** your exported color palettes (which live as separate files in `addons/fancychat/chatcolors/`). Re-import a palette via **Settings → Font Colors → Import Colors** to restore it.
 
 ## See also
 

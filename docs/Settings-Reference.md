@@ -18,6 +18,7 @@ Visual appearance and behaviour of the chat plate.
 - **Custom Tab Modes** — pick which message types funnel into the **Custom** tab (NPC, Tell, Party, Linkshell, Shout — any combination).
 - **Position Offsets** — fine-tune each plate's X/Y offset relative to its anchor. Save / Reset buttons provided.
 - **Lock Windows Positions (disables dragging)** — prevents accidental drag.
+- **Show help (i) hover button on the first chat window** — toggles the small info-icon button in the top-left corner of the primary chat. Hovering it pops up a quick-reference panel listing the built-in mouse / keyboard interactions. Enabled by default.
 - **Compact tabs in the bottom-left corner** — relocates the tab buttons to a small corner cluster.
 - **Gampad Chat Navigation** — controller-friendly tab switching and history scroll.
 - **Enable Auto-Hide window** — fade the chat out after idle. Slider sets the delay (5–60 s). See [The Chat Window → Auto-hide](The-Chat-Window.md#auto-hide).
@@ -30,9 +31,10 @@ Visual appearance and behaviour of the chat plate.
 Per-mode color editor. See [Color Palettes](Color-Palettes.md) for the full walkthrough including palette sharing.
 
 - Each editable color is a small swatch labeled with the category. Click the swatch to bring up the picker; the arrow button next to it applies the picker's current color.
+- Hover the **(i)** icon next to a label for a description of which messages use that color.
 - **Reset Colors** restores the entire palette to the addon defaults.
-- **Export Colors** writes the current palette to `chatcolors/colorset_<your character>` (folder auto-created on first use).
-- **Import Colors** reads the file with your character's name back in.
+- **Export Colors** opens a dialog so you can name the file before saving. The default suggestion is `colorset_<your character>_<N>` (auto-incrementing). Files are written to `addons/fancychat/chatcolors/` and can be edited as plain text.
+- **Import Colors** opens a dialog listing every colorset file in `chatcolors/` — pick one and Load it to replace the current palette. Any file someone hands you can simply be dropped into the folder and imported, no renaming required.
 
 ## Shortcuts
 

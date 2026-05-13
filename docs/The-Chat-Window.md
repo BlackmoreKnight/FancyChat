@@ -9,7 +9,7 @@ Fancychat replaces FFXI's native chat plate with its own in-game chat overlay. T
 - **Side icons** — GuideMe, Notepad, Settings cog, Compact-Tabs toggle
 - **Optional second window** — independently configured second plate (Settings → Chat Window → "Enable second chat window")
 
-Most of the addon's state — settings, color palette, custom filters, notepad entries — is keyed by your character name. Switching characters loads a separate set of preferences automatically. See [Data Storage](Data-Storage.md) for the on-disk layout.
+Your settings, exported color palettes, and Notepad notes are per-character — switching characters loads your other character's preferences automatically. Combat-filter `.txt` files live in a shared `combatfilters/` folder and are available to every character on your account. See [Data Storage](Data-Storage.md) for the on-disk layout.
 
 ## Positioning
 
@@ -48,7 +48,7 @@ The tab bar shows up to 7 tabs: **All** (or **AllAlt**), **Combat**, **Linkshell
 
 ## Hover previews
 
-Hovering the in-game name of an item, ability, or spell in chat (an "auto-translate" phrase wrapped in the special `‹...›` brackets) brings up a tooltip showing the corresponding entry from FFXI's resource files: item description and stats, ability cost / type, spell properties.
+Hovering the in-game name of an item, ability, or spell in chat (an "auto-translate" phrase wrapped in special angle brackets, e.g. `❮Item Name❯`) brings up a tooltip showing the corresponding entry from FFXI's resource files: item description and stats, ability cost / type, spell properties.
 
 - Up to **four** preview tooltips can stack horizontally above the chat window when a single line contains multiple recognised names.
 - Disable previews from Settings → Extra → "Preview Items/Abilities/Spells on mouse hover".

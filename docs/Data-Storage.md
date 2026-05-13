@@ -8,7 +8,7 @@ Everything Fancychat saves to disk lives under your Ashita install. All data fil
 Ashita/
 ├── addons/fancychat/
 │   ├── chatcolors/
-│   │   └── colorset_<character>            ← exported color palette, one per character
+│   │   └── colorset_*                      ← exported color palettes (you can keep many per character)
 │   ├── combatfilters/
 │   │   ├── example.txt                     ← shipped default filter set
 │   │   └── *.txt                           ← user-managed extra filter files

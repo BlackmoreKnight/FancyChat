@@ -121,8 +121,6 @@ Icons used in compact mode (the emoji below are GitHub-rendered approximations; 
 
 A ${\textsf{\color{orange}{colorblind mode}}}$ is available in **Settings → Extra**, which swaps the red-green colour palette used for actor names.
 
-The separator between actor and damage (defaults to `>`) is configurable in **Settings → Chat Window → "Combat Split Char"**.
-
 ##### Combat log filtering
 Three quick toggles in **Settings → Extra** let you narrow the combat tab down:
 - **Hide alliance combat log** — drops alliance-member combat lines
@@ -172,7 +170,7 @@ Open the Settings panel with `/fchat settings`. It contains six tabs:
 
 <ol>
   <li><b>Chat Window</b>: font size, chat width, line count, plate background alpha, second chat window, custom-tab message types, position offsets, window locks, the info-icon help button toggle, compact-tab mode, half-length docked panels, anti-obstruction (auto-slide when an FFXI menu or the Auto-Translate menu opens), auto-hide delay, gamepad navigation.</li>
-  <li><b>Font Colors</b>: per-message-mode colour editor. Colour picker UI plus Import / Export — exported colour schemes are written to <code>chatcolors/colorset_&lt;character&gt;</code> as plain-text key,value files (folder is auto-created on first export). One file per character; copy and rename to share a palette across characters or with another player.</li>
+  <li><b>Font Colors</b>: per-message-mode colour editor. Colour picker UI plus Import / Export — clicking <b>Export Colors</b> opens a dialog where you can name the file (suggestion: <code>colorset_&lt;character&gt;_&lt;N&gt;</code>, auto-incrementing); clicking <b>Import Colors</b> opens a picker listing every colorset file in <code>addons/fancychat/chatcolors/</code>. Drop a friend's colorset file into that folder and you can import it from your own character — no renaming required.</li>
   <li><b>Shortcuts</b>: configure 2-key combos (modifier + main key) for: hide chat, BigMode, tab cycle (primary window), tab cycle (secondary window). All four default to disabled — tick the <b>Enabled</b> checkbox per row to activate one.</li>
   <li><b>Extra</b>: block legacy chat, combat-log filtering toggles (hide alliance / non-party / show-only-you), Compact Combat Log toggle, timestamp format and timestamp-as-line interval, precise time-of-death stamps, R0 connection-error warnings, /tell sound notifications, chat-word alerts, item/ability/spell hover previews, auto-restore logs when opening legacy chat, colorblind mode, fast scroll (Shift + mouse wheel), docked second window, heart emoji.</li>
   <li><b>CL Filters</b>: <b>Active filter file</b> dropdown to pick which <code>.txt</code> in the <code>combatfilters/</code> folder is used as the active filter list, with <b>Refresh</b> / <b>Edit Selected Filter</b> / <b>Reload Selected Filter</b> / <b>Open Folder</b> buttons. Supports keywords with <code>_y</code> / <code>_p</code> scope modifiers.</li>
@@ -211,7 +209,7 @@ The separate **Auto-restore logs when opening Legacy Chat** option (Extra tab) r
 Quick reference (see [docs/Data Storage](docs/Data-Storage.md) for the full layout):
 
 - **Settings (per character)** — `Ashita/config/addons/fancychat/<character>/settings.json` — saved automatically whenever you change something. Holds tab selection, font size, shortcut keys, alert words, your Notepad notes, and every checkbox state.
-- **Color sets** — `Ashita/addons/fancychat/chatcolors/colorset_<character>` — written by **Font Colors → Export Colors**. Plain text; copy + rename to share between characters or with another player.
+- **Color sets** — `Ashita/addons/fancychat/chatcolors/colorset_*` — written by **Font Colors → Export Colors**. Plain text; you can keep multiple palettes per character. Drop someone else's file in this folder to import it.
 - **Combat filters** — `Ashita/addons/fancychat/combatfilters/*.txt` — user-managed. The shipped file is `example.txt`.
 - **Saved chat logs** — `Ashita/config/addons/fancychat/logs/<character>/ChatLogs_<timestamp>/` (see above).
 - **Notification / alert sounds** — `Ashita/addons/fancychat/notifications/*.wav` — drop your own here.

@@ -1,6 +1,6 @@
 # Companion Panels
 
-Two side panels live next to your chat: **GuideMe** and **Notepad**. Both can be docked to either chat window or floated as movable windows.
+Two side panels live next to your chat: **GuideMe** and **Notepad**. Both can be docked above the chat window or floated as movable windows. When the second chat window is enabled, you can also dock both panels there instead — see [Docking](#docking) below.
 
 ## GuideMe
 
@@ -57,7 +57,7 @@ Each saved note has two small buttons next to it:
 
 ### Persistence
 
-Notes are stored inside `settings.json` under the `Notes` key, scoped per character. They persist across sessions and travel with your settings backup. See [Data Storage](Data-Storage.md).
+Notes are stored in the per-character settings file and persist across sessions. Back up your `config/addons/fancychat/` folder to keep them safe. See [Data Storage](Data-Storage.md).
 
 ### Docking
 
