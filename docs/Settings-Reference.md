@@ -99,7 +99,7 @@ Combat-log filter file picker. See [Combat Filters](Combat-Filters.md) for the f
 
 One-click utilities.
 
-- **Save Chat Logs** — writes every tab's current contents to `addons/fancychat/logs/<character>/ChatLogs_<timestamp>/`. See [Data Storage → Logs](Data-Storage.md#saved-chat-logs).
+- **Save Chat Logs** — writes every tab's current contents to `config/addons/fancychat/logs/<character>/ChatLogs_<timestamp>/`. See [Data Storage → Logs](Data-Storage.md#saved-chat-logs).
 - **Open Logs Folder** — opens the logs folder in Explorer.
 - **Open Manual** — opens the in-game manual.
 - **Restore Legacy Chat Logs** — re-injects Fancychat's buffered chat history back into the FFXI legacy chat. Use this for bug-report screenshots that need the legacy chat layout.

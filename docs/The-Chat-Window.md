@@ -15,8 +15,14 @@ Most of the addon's state — settings, color palette, custom filters, notepad e
 
 - **Drag** the plate by clicking and holding on the dark background area (not the tab bar or the side icons).
 - **Lock** the position with Settings → Chat Window → "Lock Windows Positions (disables dragging)".
-- **Anti-obstruction** mode (Settings → Chat Window → "Prevent obstructing FFXI UI") slides the plate out of the way when an FFXI menu (inventory, magic, mog house, etc.) opens.
+- **Anti-obstruction** mode (Settings → Chat Window → "Prevent obstructing FFXI UI") slides the plate out of the way when an FFXI menu (inventory, magic, mog house, etc.) opens. A companion option does the same for the Auto-Translate menu.
 - **Position offsets** (Settings → Chat Window) fine-tune each window's X/Y relative to its anchor.
+
+## Info-icon hover button
+
+The primary chat window has a small info-icon button in its top-left corner. Hover it to bring up a quick-reference panel listing every mouse and keyboard interaction available on chat lines (copy, save to Notepad, zone search, open links, jump to latest, drag, scroll, etc.). Move the mouse off the button to dismiss.
+
+Disable the button from **Settings → Chat Window → "Show help (i) hover button on the first chat window"** if you don't want it on screen. It only appears on the primary window; the secondary window (if enabled) does not show it.
 
 ## Tabs
 
@@ -37,6 +43,7 @@ The tab bar shows up to 7 tabs: **All** (or **AllAlt**), **Combat**, **Linkshell
 
 - **Click any chat line** to copy its full text to the system clipboard. Multi-line messages copy as one unit. A confirmation echo appears: *"Text successfully copied to clipboard!"*
 - **Shift + click** saves the line to the [Notepad](Companion-Panels.md#notepad) instead of the clipboard.
+- **Ctrl + click** a line that mentions one or more zone names opens the [Zone Search & Maps](Zone-Search-and-Maps.md) popup at the cursor — `/sea`, FFXIclopedia / bg-wiki shortcuts, and a browser for the bundled zone maps.
 - **Click the `[link]` marker** next to a line that contains a URL — opens the URL in your default browser. (Clicking the message text itself still copies normally.)
 
 ## Hover previews

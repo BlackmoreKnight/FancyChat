@@ -11,6 +11,7 @@ Fancychat is an add-on for the Ashita FFXI loader that replaces the native chat 
 ## Features
 
 - [Compact Combat Log](Compact-Combat-Log.md) — icon-based combat formatting
+- [Zone Search & Maps](Zone-Search-and-Maps.md) — Ctrl-click a zone name in chat for `/sea`, wiki links, and bundled FFXI zone maps
 - [BigMode](BigMode.md) — full-screen chat history overlay
 - [Companion Panels](Companion-Panels.md) — GuideMe (wiki viewer) + Notepad
 

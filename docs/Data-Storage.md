@@ -10,31 +10,40 @@ Ashita/
 │   ├── chatcolors/
 │   │   └── colorset_<character>            ← exported color palette, one per character
 │   ├── combatfilters/
-│   │   ├── example.txt                      ← shipped default filter set
-│   │   └── *.txt                            ← user-managed extra filter files
-│   ├── logs/
-│   │   └── <character>/
-│   │       └── ChatLogs_YYYY_MM_DD-HH_MM_SS/
-│   │           ├── All.txt
-│   │           ├── Combat.txt
-│   │           ├── Linkshell.txt
-│   │           ├── Party.txt
-│   │           ├── Tell.txt
-│   │           ├── Shout.txt
-│   │           └── Custom.txt
+│   │   ├── example.txt                     ← shipped default filter set
+│   │   └── *.txt                           ← user-managed extra filter files
+│   ├── maps/
+│   │   └── <Zone Name>/
+│   │       ├── Maps/                       ← base floor / area maps
+│   │       ├── Treasure/                   ← coffer-spawn maps
+│   │       ├── Fishing/                    ← fishing-spot maps
+│   │       ├── Weather/                    ← elemental-spawn maps
+│   │       └── Notorious_Monsters/         ← NM maps + _nm_index.lua
 │   ├── notifications/
 │   │   ├── notification_1.wav
 │   │   ├── notification_2.wav
-│   │   └── ...                              ← drop your own .wav files here
+│   │   └── ...                             ← drop your own .wav files here
 │   ├── gdifonts/
-│   │   ├── gameicons.ttf                    ← custom-icon font for compact combat log
-│   │   └── gdifonttexture.dll               ← icon-rendering helper
-│   ├── images/                              ← UI textures
+│   │   ├── gameicons.ttf                   ← custom-icon font for compact combat log
+│   │   └── gdifonttexture.dll              ← icon-rendering helper
+│   ├── images/                             ← UI textures
 │   └── ...
 └── config/addons/fancychat/
-    └── <character>/
-        └── settings.json                    ← persisted user settings
+    ├── <character>/
+    │   └── settings.json                   ← persisted user settings (per character)
+    └── logs/
+        └── <character>/
+            └── ChatLogs_YYYY_MM_DD-HH_MM_SS/
+                ├── All.txt
+                ├── Combat.txt
+                ├── Linkshell.txt
+                ├── Party.txt
+                ├── Tell.txt
+                ├── Shout.txt
+                └── Custom.txt
 ```
+
+> **Note:** saved chat logs live under `config/addons/fancychat/logs/`, **not** under the addon folder. The addon folder (`addons/fancychat/`) holds code, palettes, filters, sounds, and maps; the config folder (`config/addons/fancychat/`) holds per-character settings and saved logs. Both must be backed up to migrate everything.
 
 ## settings.json
 
@@ -61,7 +70,9 @@ User-managed `.txt` files in `combatfilters/`. Pick the active one with **Settin
 
 ## Saved chat logs
 
-Written **on demand** — by the **Save Chat Logs** button in **Settings → Tools** or the `/fchat savelogs` command. **They are NOT auto-saved on unload.** One subfolder per save, one `.txt` per chat tab. The unload handler only persists settings and (if `Auto-Dump Chat` is on) re-injects the buffer into the legacy chat — neither writes log files.
+Path: `Ashita/config/addons/fancychat/logs/<character>/ChatLogs_<timestamp>/`
+
+Written **on demand** — by the **Save Chat Logs** button in **Settings → Tools** or the `/fchat savelogs` command. **They are NOT auto-saved on unload.** One subfolder per save, one `.txt` per chat tab. The unload handler only persists settings and (if **Auto-restore logs when opening Legacy Chat** is on) re-injects the buffer into the legacy chat — neither writes log files.
 
 ## Notification sounds
 
@@ -75,8 +86,8 @@ Two volume variants are supported:
 
 To back up everything, copy these two folders:
 
-- `Ashita/addons/fancychat/` — addon code, color sets, combat filters, log archives, sounds
-- `Ashita/config/addons/fancychat/` — per-character settings.json
+- `Ashita/addons/fancychat/` — addon code, color sets, combat filters, sounds, maps
+- `Ashita/config/addons/fancychat/` — per-character settings and saved chat logs
 
 To migrate to a new install, drop both folders in place. To share with another player, send only the specific files you want them to have (most often: a `chatcolors/colorset_*` or a `combatfilters/*.txt`).
 
