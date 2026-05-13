@@ -26,7 +26,7 @@ function M.register()
 			AshitaCore:GetChatManager():QueueCommand(1, '/sendkey enter up')
 		end
 
-		-- Button 8 (RT) hold enables gamepad navigation mode.
+		-- Button 8 (LB) hold enables gamepad navigation mode.
 		if e.button == 8 then
 			if e.state == 1 then
 				ResetAutoHideTimer()
@@ -50,7 +50,7 @@ function M.register()
 			e.blocked = true
 		end
 
-		-- Button 9: cycle primary chat's tab.
+		-- Button 9 (RB): cycle primary chat's tab.
 		if e.button == 9 and not fcw[1].BufferBusy and gamepadButtons.buttonsCDready then
 			local tab_id = utils.FindInTable(tab.Tabs, allSettings.SelectedTab)
 			if tab_id then
@@ -64,7 +64,7 @@ function M.register()
 			return
 		end
 
-		-- Button 17: cycle secondary chat's tab.
+		-- Button 17 (RT): cycle secondary chat's tab.
 		if allSettings.SecondChat[1] and e.button == 17 and not fcw[1].BufferBusy and gamepadButtons.buttonsCDready then
 			local tab_id = utils.FindInTable(tab.Tabs, allSettings.SelectedTab2)
 			if tab_id then
@@ -78,7 +78,7 @@ function M.register()
 			return
 		end
 
-		-- Buttons 19 / 21: analog stick scroll for primary / secondary.
+		-- Buttons 19 / 21 (left stick / right stick Y-axis): analog scroll for primary / secondary.
 		if e.button == 19 then
 			gamepadButtons.scroll1 = (e.state ~= 0) and (e.state / math.abs(e.state)) or 0
 		end
@@ -98,7 +98,7 @@ function M.register()
 			return
 		end
 
-		-- Button 13: snap-to-bottom on every visible chat.
+		-- Button 13 (B): snap-to-bottom on every visible chat.
 		if e.button == 13 and e.state == 1 then
 			if fcw[1].ScrolledBack > 0 then ResetScrolling(1) end
 			if fcw[2].ScrolledBack > 0 then ResetScrolling(2) end
@@ -106,14 +106,14 @@ function M.register()
 			return
 		end
 
-		-- Button 15: toggle BigMode.
+		-- Button 15 (Y): toggle BigMode.
 		if e.button == 15 and e.state == 1 and gamepadButtons.buttonsCDready then
 			fcw[3].BigMode = not fcw[3].BigMode
 			gamepadButtons.buttonsCD = os.clock()
 			return
 		end
 
-		-- Button 14: open the FFXI chat input box.
+		-- Button 14 (X): open the FFXI chat input box.
 		if e.button == 14 and e.state == 1
 			and AshitaCore:GetChatManager():IsInputOpen() == 0x00
 			and gamepadButtons.buttonsCDready then
@@ -123,7 +123,7 @@ function M.register()
 			return
 		end
 
-		-- Button 12: submit current input as a command.
+		-- Button 12 (A): submit current input as a command.
 		if e.button == 12 and e.state == 1
 			and AshitaCore:GetChatManager():IsInputOpen() == 0x11
 			and gamepadButtons.buttonsCDready then
@@ -137,7 +137,8 @@ function M.register()
 			return
 		end
 
-		-- Buttons 0 / 1: cycle through user-typed command history.
+		-- Buttons 0 / 1 (D-pad Up / Down): cycle through user-typed command history
+		-- (0 = Up = older / previous; 1 = Down = newer / next).
 		if #fcw[1].LastCommands[1] > 0 then
 			if e.button == 0 and e.state == 1
 				and AshitaCore:GetChatManager():IsInputOpen() == 0x11
@@ -169,7 +170,8 @@ function M.register()
 			end
 		end
 
-		-- Buttons 2 / 3: cycle through preset (`!mog`, `!chef`, ...) commands.
+		-- Buttons 2 / 3 (D-pad Left / Right): cycle through preset (`!mog`, `!chef`, ...) commands
+		-- (2 = Left = previous; 3 = Right = next).
 		if e.button == 3 and e.state == 1
 			and AshitaCore:GetChatManager():IsInputOpen() == 0x11
 			and gamepadButtons.buttonsCDready then
