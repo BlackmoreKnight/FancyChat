@@ -60,9 +60,9 @@ Fancychat was built collaboratively with AI tools (predominantly large language 
 
 - **Documentation** — the bulk of the README, the [`docs/`](docs/) folder pages, and the in-game manual (`help.lua`) were drafted and refined with AI assistance.
 - **Code refactoring** — the split of the original single-file `fancychat.lua` (~8,700 lines) into the modular `lib/*.lua` structure, along with the inline explanatory comments throughout, was AI-assisted.
-- **Bug investigation** — many bug hunts (parser edge cases, ImGui geometry quirks, settings-persistence issues, byte / SJIS handling, color routing) were debugged with AI help.
-- **C++ modifications** — some of the changes in `custom gdifonts src/` (the modified gdifonts library) were AI-assisted.
-- **Auxiliary tooling and asset prep** — the zone-map download / organisation scripts under `maps/`, the JPEG compression pass on the maps, the logo resize, and the notification WAV downmix (stereo → mono / 44.1 → 22 kHz) all involved AI assistance.
+- **Bug investigation** — several bugs hunts were debugged with AI help as a final pass.
+- **C++ modifications** — some of the final changes in `custom gdifonts src/` (the modified gdifonts library) were AI-assisted in a last pass.
+- **Auxiliary tooling and asset prep** — the zone-map download / organisation scripts under `maps/`, the JPEG compression pass on the maps, the FancyChat logo, and the notification WAV downmix (stereo → mono / 44.1 → 22 kHz) all involved AI assistance.
 
 Architecture decisions, feature design, in-game testing, and final-author review are mine — AI was a collaborator, not the designer. Any bugs you find are still my responsibility.
 <br></br>
@@ -216,7 +216,8 @@ Two independent sound features:
 
 Both pull from `addons/fancychat/notifications/`. The two dropdowns each show six fixed slots: `notification_1` through `notification_6`. To use your own sounds, **replace** the shipped `.wav` files of the same name (don't add new ones — extra filenames are not picked up by the dropdowns). For the **Volume Boost** option you also need to provide the matching boosted variant: each base file `notification_<n>.wav` has a sibling `notification_<n>B.wav` that the addon plays when Volume Boost is ticked.
 
-A separate **Warning messages on R0s** toggle (also in Extra) prints a chat warning when an R0 connection error occurs, so you can see a hiccup at a glance.
+#### R0 Detection
+A **Warning messages on R0s** toggle (also in Extra) prints a chat warning when an R0 connection error occurs, so you can see a hiccup at a glance.
 <br></br>
 
 #### Settings Panel
