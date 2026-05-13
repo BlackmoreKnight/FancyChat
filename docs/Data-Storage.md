@@ -20,9 +20,10 @@ Ashita/
 │   │       ├── Weather/                    ← elemental-spawn maps
 │   │       └── Notorious_Monsters/         ← NM maps + _nm_index.lua
 │   ├── notifications/
-│   │   ├── notification_1.wav
+│   │   ├── notification_1.wav              ← replace with your own to customise slot 1
+│   │   ├── notification_1B.wav             ← boosted variant for slot 1 (Volume Boost)
 │   │   ├── notification_2.wav
-│   │   └── ...                             ← drop your own .wav files here
+│   │   └── ...                             ← 6 fixed slots + matching B variants
 │   ├── gdifonts/
 │   │   ├── gameicons.ttf                   ← custom-icon font for compact combat log
 │   │   └── gdifonttexture.dll              ← icon-rendering helper
@@ -76,11 +77,14 @@ Written **on demand** — by the **Save Chat Logs** button in **Settings → Too
 
 ## Notification sounds
 
-`addons/fancychat/notifications/*.wav` — drop your own `.wav` files here to add them to the **Notification** / **Alert** dropdowns. Files named `notification_<n>.wav` are auto-detected on next addon load.
+`addons/fancychat/notifications/` ships with six fixed sound slots: `notification_1.wav` through `notification_6.wav` (plus a `notification_<n>B.wav` boosted variant of each for the **Volume Boost** option). The **Incoming /tell notifications** and **Chat word alert** dropdowns in **Settings → Extra** offer exactly those six slots — the folder is **not** scanned for additional files.
 
-Two volume variants are supported:
-- `notification_3.wav` — base volume
-- `notification_3B.wav` — boosted volume (used when **Volume Boost** is ticked next to the dropdown)
+To customise a sound, **replace** the existing `.wav` file with one of your own, keeping the exact filename. For example, to change the third notification:
+
+- Replace `notification_3.wav` with your own sound (any standard `.wav` works).
+- If you want Volume Boost to work for that slot, also replace `notification_3B.wav` with a louder copy (typically the same audio amplified by a few dB).
+
+Adding `notification_7.wav` or any other new filename does nothing — it won't appear in the dropdown.
 
 ## Backup / migration
 
