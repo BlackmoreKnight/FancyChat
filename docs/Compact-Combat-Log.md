@@ -11,7 +11,7 @@ Eleanor [sword-icon] Treant Sapling > 23 DMG
 ```
 
 Where:
-- `[sword-icon]` is a custom icon from the bundled `gameicons.ttf` font (not a regular emoji)
+- `[sword-icon]` is a custom icon glyph from the bundled `gameicons.ttf` font
 - `>` is a fixed arrow glyph (also drawn from `gameicons.ttf`) separating the actor from the damage
 - `Eleanor` and `Treant Sapling` are coloured according to who they are (see below)
 

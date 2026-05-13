@@ -283,7 +283,6 @@ help.settingsExtra = {
 						'- Colorblind mode for damage done/taken text: changes the damage-done / damage-taken text colours for users with red-green colour blindness.',
 						'- Fast scroll chat history: lets you Shift+Left/Right scroll the chat history multiple lines at a time while hovering the chat window.',
 						'- Dock GuideMe/Notes on the second chat window: when the second chat window is enabled, dock the GuideMe and Notepad panels there instead of the main window.',
-						'- Heart emoji: replaces the text "<3" with the heart emoji.',
 					 };
 help.settingsCLFilters = {
 							'CL Filters',

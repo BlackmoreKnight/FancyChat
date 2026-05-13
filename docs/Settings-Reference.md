@@ -83,7 +83,6 @@ Suppress messages from being drawn in FFXI's native chat window (Fancychat shows
 - **Colorblind mode for damage done/taken text** — see [Compact Combat Log](Compact-Combat-Log.md#colorblind-mode).
 - **Fast scroll chat history** — enables Shift + mouse-wheel for multi-line scroll.
 - **Dock GuideMe/Notes on the second chat window** — see [Companion Panels](Companion-Panels.md#docking).
-- **Heart emoji** — `<3` substitution to ❤.
 
 ## CL Filters
 

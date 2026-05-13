@@ -7,14 +7,13 @@
 ### What is it?
 Fancychat is an add-on for FFXI's third-party loader and hook Ashita (https://www.ashitaxi.com/).
 
-It replaces FFXI's native chat with a customizable in-game chat overlay: messages are sorted into tabs, combat lines can be compacted into icon-based rows, emojis and timestamps are supported, links are clickable, the chat window can be themed and resized to taste, and there's a bundled set of FFXI zone maps you can pull up by Ctrl+clicking any chat line that mentions a zone name.
+It replaces FFXI's native chat with a customizable in-game chat overlay: messages are sorted into tabs, combat lines can be compacted into icon-based rows, timestamps are supported, links are clickable, the chat window can be themed and resized to taste, and there's a bundled set of FFXI zone maps you can pull up by Ctrl+clicking any chat line that mentions a zone name.
 <br></br>
 
 ### Main features
 - **7 chat tabs** to organize messages: All (renamed AllAlt if combat is hidden from it), Combat, Linkshell, Party, Tell, Shout, Custom
-- ${\textsf{\color{cyan}{Compact Combat Log}}}$ — rewrites combat messages into tight icon-based lines (icons are drawn from the bundled `gameicons.ttf` font, so they always render in-game even when the equivalent emoji wouldn't)
+- ${\textsf{\color{cyan}{Compact Combat Log}}}$ — rewrites combat messages into tight icon-based lines (icons are drawn from the bundled `gameicons.ttf` font, so they render reliably in-game)
 - **Actor name coloring** — you, party members, alliance, enemies, and NPCs each get a distinct color
-- **Emoji support** — ~2000+ emoji available via `:name:` substitution (`:grinning:` → 😀)
 - **Timestamps** — per-line `[HH:MM:SS]` (long) or `[HH:MM]` (short), or a periodic horizontal banner line every 1 / 5 / 10 / 30 / 60 minutes
 - ${\textsf{\color{cyan}{Auto-Hide}}}$ — chat fades out on inactivity and wakes back up on new messages on the active tab, mouse-wheel scrolling, a configured keyboard shortcut, opening the chat input, or NPC dialog events (mouse hover alone does **not** wake it — that's intentional)
 - ${\textsf{\color{cyan}{BigMode}}}$ — full-screen chat history overlay showing 30+ lines at once
@@ -47,7 +46,7 @@ The bundled `gdifonts/gdifonttexture.dll` is a ${\textsf{\color{orange}{modified
 
 <a href="https://github.com/ThornyFFXI/gdifonttexture" target="_blank">https://github.com/ThornyFFXI/gdifonttexture</a>
 
-The modifications add Fancychat-specific behaviour (custom marked-color escape codes, emoji glyph dispatch, additional draw paths). The full source of the modified version is included in this repo under [`custom gdifonts src/`](custom%20gdifonts%20src/) for transparency and as a basis for anyone wanting to rebuild the DLL from source.
+The modifications add Fancychat-specific rendering behaviour (custom marked-color escape codes, additional draw paths, and other tweaks tailored to the addon's pipeline). The full source of the modified version is included in this repo under [`custom gdifonts src/`](custom%20gdifonts%20src/) for transparency and as a basis for anyone wanting to rebuild the DLL from source.
 
 > ${\textsf{\color{orange}{If you are building your own Ashita addon and want a GDI font texture library, use Thorny's original}}}$ — not this fork. The modifications here are tightly coupled to Fancychat's rendering pipeline and are not maintained as a general-purpose drop-in replacement.
 
@@ -133,7 +132,7 @@ Tabs can be shown as a full tab bar or switched to compact mode (`/fchat compact
 #### Compact Combat Log
 ${\textsf{\color{cyan}{Compact Combat Log}}}$ is toggled in **Settings → Extra**. When on, incoming combat messages are rewritten into a condensed, icon-based format to reduce visual noise while keeping every relevant detail visible at a glance. Actor names are coloured by role and damage numbers are highlighted.
 
-Icons used in compact mode (the emoji below are GitHub-rendered approximations; in-game they are drawn as custom glyphs from the bundled `gameicons.ttf`):
+Icons used in compact mode (the symbols below are GitHub-rendered approximations; in-game they are drawn as custom glyphs from the bundled `gameicons.ttf`):
 <ul>
   <li>${\textsf{\color{white}{⚔}}}$ — melee attack</li>
   <li>${\textsf{\color{white}{🏹}}}$ — ranged attack</li>
@@ -196,7 +195,7 @@ Open the Settings panel with `/fchat settings`. It contains six tabs:
   <li><b>Chat Window</b>: font size, chat width, line count, plate background alpha, second chat window, custom-tab message types, position offsets, window locks, the info-icon help button toggle, compact-tab mode, half-length docked panels, anti-obstruction (auto-slide when an FFXI menu or the Auto-Translate menu opens), auto-hide delay, gamepad navigation.</li>
   <li><b>Font Colors</b>: per-message-mode colour editor. Colour picker UI plus Import / Export — clicking <b>Export Colors</b> opens a dialog where you can name the file (suggestion: <code>colorset_&lt;character&gt;_&lt;N&gt;</code>, auto-incrementing); clicking <b>Import Colors</b> opens a picker listing every colorset file in <code>addons/fancychat/chatcolors/</code>. Drop a friend's colorset file into that folder and you can import it from your own character — no renaming required.</li>
   <li><b>Shortcuts</b>: configure 2-key combos (modifier + main key) for: hide chat, BigMode, tab cycle (primary window), tab cycle (secondary window). All four default to disabled — tick the <b>Enabled</b> checkbox per row to activate one.</li>
-  <li><b>Extra</b>: block legacy chat, combat-log filtering toggles (hide alliance / non-party / show-only-you), Compact Combat Log toggle, timestamp format and timestamp-as-line interval, precise time-of-death stamps, R0 connection-error warnings, /tell sound notifications, chat-word alerts, item/ability/spell hover previews, auto-restore logs when opening legacy chat, colorblind mode, fast scroll (Shift + mouse wheel), docked second window, heart emoji.</li>
+  <li><b>Extra</b>: block legacy chat, combat-log filtering toggles (hide alliance / non-party / show-only-you), Compact Combat Log toggle, timestamp format and timestamp-as-line interval, precise time-of-death stamps, R0 connection-error warnings, /tell sound notifications, chat-word alerts, item/ability/spell hover previews, auto-restore logs when opening legacy chat, colorblind mode, fast scroll (Shift + mouse wheel), docked second window.</li>
   <li><b>CL Filters</b>: <b>Active filter file</b> dropdown to pick which <code>.txt</code> in the <code>combatfilters/</code> folder is used as the active filter list, with <b>Refresh</b> / <b>Edit Selected Filter</b> / <b>Reload Selected Filter</b> / <b>Open Folder</b> buttons. Supports keywords with <code>_y</code> / <code>_p</code> scope modifiers.</li>
   <li><b>Tools</b>: save chat logs, open the logs folder, open the in-game manual, restore legacy chat.</li>
 </ol>
