@@ -158,8 +158,6 @@ function M.register()
 			if allSettings.R0warning[1] and uiw.NetStatObj[1] > 0 and ashita.memory.read_uint32(uiw.NetStatObj[1]) == 0 and uiw.NetStatObj[2] > 0 then	
 				AshitaCore:GetChatManager():AddChatMessage(123, false, '[Warning] R0 detected.')
 				AshitaCore:GetChatManager():AddChatMessage(123, false, 'Use /fchat savelogs to save chat logs.')
-				--CEXI extra message
-				AshitaCore:GetChatManager():AddChatMessage(123, false, 'If this is a server crash and you used a pop item, take a FULL screenshot as proof.')
 			end
 		
 			uiw.NetStatObj[2] = ashita.memory.read_uint32(uiw.NetStatObj[1])
