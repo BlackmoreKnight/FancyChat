@@ -135,8 +135,8 @@ Enable in **Settings → Chat Window → "Gampad Chat Navigation"** (off by defa
 | Toggle ${\textsf{\color{cyan}{BigMode}}}$ | **Y** | While LB held |
 | Open the FFXI chat input box | **X** | While LB held, chat input closed |
 | Send the typed text (same as Enter) | **A** | While LB held, chat input open |
-| Previous command in your typed history | **D-pad ↓** | While LB held, chat input open |
-| Next command in your typed history | **D-pad ↑** | While LB held, chat input open |
+| Previous command in your typed history | **D-pad ↑** | While LB held, chat input open |
+| Next command in your typed history | **D-pad ↓** | While LB held, chat input open |
 | Previous preset command (`!mog`, `!chef`, …) | **D-pad ←** | While LB held, chat input open |
 | Next preset command | **D-pad →** | While LB held, chat input open |
 
