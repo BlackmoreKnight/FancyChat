@@ -41,6 +41,26 @@ The current release is compatible with **both ${\textsf{\color{orange}{Ashita 4.
 A few small things worth knowing up front:
 - Some features assume a 16:9-ish screen ratio. On very wide / narrow resolutions you may need to nudge things back into place via **Settings → Chat Window → Position Offsets**.
 - A few settings are labelled ${\textsf{\color{orange}{experimental}}}$ — they work, but may behave imperfectly in edge cases.
+
+#### Modified gdifonts library
+The bundled `gdifonts/gdifonttexture.dll` is a ${\textsf{\color{orange}{modified}}}$ build of **Thorny**'s gdifonts library. The original, unmodified library lives at:
+
+<a href="https://github.com/ThornyFFXI/gdifonttexture" target="_blank">https://github.com/ThornyFFXI/gdifonttexture</a>
+
+The modifications add Fancychat-specific behaviour (custom marked-color escape codes, emoji glyph dispatch, additional draw paths). The full source of the modified version is included in this repo under [`custom gdifonts src/`](custom%20gdifonts%20src/) for transparency and as a basis for anyone wanting to rebuild the DLL from source.
+
+> ${\textsf{\color{orange}{If you are building your own Ashita addon and want a GDI font texture library, use Thorny's original}}}$ — not this fork. The modifications here are tightly coupled to Fancychat's rendering pipeline and are not maintained as a general-purpose drop-in replacement.
+
+#### AI usage
+Fancychat was built collaboratively with AI tools (predominantly large language models acting as coding / writing assistants). For full transparency, the main areas where AI was used:
+
+- **Documentation** — the bulk of the README, the [`docs/`](docs/) folder pages, and the in-game manual (`help.lua`) were drafted and refined with AI assistance.
+- **Code refactoring** — the split of the original single-file `fancychat.lua` (~8,700 lines) into the modular `lib/*.lua` structure, along with the inline explanatory comments throughout, was AI-assisted.
+- **Bug investigation** — many bug hunts (parser edge cases, ImGui geometry quirks, settings-persistence issues, byte / SJIS handling, color routing) were debugged with AI help.
+- **C++ modifications** — some of the changes in `custom gdifonts src/` (the modified gdifonts library) were AI-assisted.
+- **Auxiliary tooling and asset prep** — the zone-map download / organisation scripts under `maps/`, the JPEG compression pass on the maps, the logo resize, and the notification WAV downmix (stereo → mono / 44.1 → 22 kHz) all involved AI assistance.
+
+Architecture decisions, feature design, in-game testing, and final-author review are mine — AI was a collaborator, not the designer. Any bugs you find are still my responsibility.
 <br></br>
 
 ### 📖 Documentation
