@@ -129,7 +129,7 @@ Enable in **Settings → Chat Window → "Gampad Chat Navigation"** (off by defa
 
 | Action | Xbox button | When it works |
 |---|---|---|
-| Enter Fancychat navigation mode | Hold ${\textsf{\color{orange}{LB}}}$ | Always |
+| ${\textsf{\color{orange}{Enter Fancychat navigation mode}}}$ | Hold ${\textsf{\color{orange}{LB}}}$ | ${\textsf{\color{orange}{Always}}}$ |
 | Cycle primary chat tab | **RB** | While LB held, chat input closed |
 | Cycle secondary chat tab | **RT** | While LB held, chat input closed, secondary window enabled |
 | Scroll primary chat history | **Left stick ↑/↓** | While LB held |
