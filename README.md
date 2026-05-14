@@ -74,9 +74,11 @@ For longer reference docs see the [`docs/` folder](docs/Home.md). Every Settings
 <br></br>
 
 ### Compatibility
-Fancychat is **not designed** to run alongside other add-ons that modify, reformat, or recolour incoming chat messages. Combat-log enhancers such as `simplelog`, alternative chat replacements, or anything that rewrites the chat stream are **not supported**. Running two chat-handling add-ons at the same time will produce visual conflicts (duplicated lines, broken colours, mangled formatting, missing spaces) that Fancychat will not try to recover from. However, there might be some lucky compatible addo-ons, so you can try your luck.
+Fancychat is **not designed** to run alongside other add-ons that modify, reformat, or recolour incoming chat messages. Combat-log enhancers such as `simplelog`, alternative chat replacements, or anything that rewrites the chat stream are **not supported** — meaning Fancychat will not be changed on its side to fix visual conflicts (duplicated lines, broken colours, mangled formatting, missing spaces) that arise from running another chat-handling add-on alongside it.
 
-If you want to use Fancychat, unload other chat-modifying add-ons first (`/addon unload <name>`). If you prefer a different chat add-on, unload Fancychat instead.
+That said, some other add-ons may happen to be compatible — feel free to try your luck. **For best odds, load FancyChat as one of the last entries in your Ashita default script.**
+
+If something does still misbehave, unload the other chat-modifying add-on first (`/addon unload <name>`). If you prefer that other add-on, unload Fancychat instead.
 
 ### Functionalities
 

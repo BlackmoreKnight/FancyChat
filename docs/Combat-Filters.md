@@ -73,7 +73,7 @@ Every combat line is scanned against every filter in the active file. Very long 
 
 ## Compatibility
 
-Fancychat's combat filters look at the **original** FFXI message text before Fancychat does anything to it. They will not match against text that has already been rewritten by another chat-modifying add-on — but you shouldn't be running another chat-modifying add-on alongside Fancychat anyway. See [Compatibility](Compatibility.md).
+Fancychat's combat filters look at the **original** FFXI message text before Fancychat does anything to it. They will not match against text that has already been rewritten by another chat-modifying add-on. Running another chat-handler alongside Fancychat is unsupported, though you can try your luck loading FancyChat last in your default script — see [Compatibility](Compatibility.md).
 
 ## See also
 

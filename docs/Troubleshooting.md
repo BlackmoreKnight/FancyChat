@@ -55,7 +55,9 @@ The compact combat log uses custom glyphs from the bundled `gameicons.ttf`. If y
 
 ## Visual conflicts (duplicated lines, broken colours, missing spaces)
 
-Almost always caused by **another chat-modifying addon** loaded at the same time. See [Compatibility](Compatibility.md) — Fancychat is not designed to coexist with other chat handlers.
+Almost always caused by **another chat-modifying addon** loaded at the same time. Fancychat is not designed to coexist with other chat handlers and won't be changed to accommodate them — but if you want to retry, loading FancyChat **last** in your Ashita default script gives the best odds. See [Compatibility](Compatibility.md).
+
+If conflicts continue, unload the other chat addon:
 
 ```
 /addon unload simplelog

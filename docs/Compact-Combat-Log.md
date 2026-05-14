@@ -59,7 +59,7 @@ Compact combat lines can be filtered to hide noise. See [Combat Filters](Combat-
 
 ## Compatibility
 
-Compact Combat Log conflicts with any other addon that reformats combat lines (`simplelog` and similar). See [Compatibility](Compatibility.md) — only one chat-modifying addon can be loaded at a time.
+Compact Combat Log can conflict with any other addon that reformats combat lines (`simplelog` and similar). Running two chat-handlers at once is unsupported, but you can try your luck by loading FancyChat last in your default script — see [Compatibility](Compatibility.md) for the full picture.
 
 ## See also
 

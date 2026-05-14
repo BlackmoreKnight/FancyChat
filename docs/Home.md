@@ -24,7 +24,7 @@ Fancychat is an add-on for the Ashita FFXI loader that replaces the native chat 
 ## Reference
 
 - [Data Storage](Data-Storage.md) — where everything is saved on disk
-- [Compatibility](Compatibility.md) — which addons work alongside Fancychat (TL;DR: none that touch chat)
+- [Compatibility](Compatibility.md) — what's unsupported, plus the "try your luck" caveat for chat-touching add-ons
 - [Troubleshooting](Troubleshooting.md) — common issues and how to recover
 
 ---

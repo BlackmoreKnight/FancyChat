@@ -682,7 +682,7 @@ function M.draw_settings_panel()
 				allSettings.CompactCombat[1] = not allSettings.CompactCombat[1]
 				SaveSettings()
 			end
-			AddTooltip('Disable if you have other addons such as simplelog enabled.', 4)
+			AddTooltip('Disable if you have other chat-modifying addons such as simplelog enabled and you see conflicts. (Loading FancyChat LAST in your default script gives the best odds of it working anyway.)', 4)
 			imgui.Dummy({0, 5})
 			imgui.Dummy({5, 0}) imgui.SameLine()
 			if imgui.Checkbox('Timestamp', {allSettings.timeStamp[1]}) then

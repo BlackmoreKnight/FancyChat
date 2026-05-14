@@ -25,7 +25,7 @@ help.loremText=		{
 						{
 							'Disclaimer',
 							'A few things worth knowing up front:',
-							'- FancyChat is not designed to coexist with other addons that modify, reformat, or recolour chat messages. Running two chat-handling addons together produces visual conflicts (duplicated lines, mangled formatting) that are not supported. Pick one chat addon and unload the others.',
+							'- FancyChat is not designed to coexist with other addons that modify, reformat, or recolour chat messages. Running two chat-handling addons together can produce visual conflicts (duplicated lines, mangled formatting) and FancyChat will not be changed to fix them. That said, some other addons may happen to be compatible - you can try your luck by loading FancyChat as one of the last entries in your Ashita default script.',
 							'- Some features rely on screen sizes and ratios close to a standard 16:9 layout. On heavily non-standard resolutions you may need to nudge things back into place via Position Offsets in the Chat Window settings.',
 							'- A few features are marked as experimental in their settings labels. They are available to use but may not always behave perfectly in every corner case.',
 						}
@@ -92,7 +92,7 @@ help.chatwindowCompactCombat = {
 								'When Compact Combat Log is enabled (Settings -> Extra), FancyChat reformats combat messages into a tighter layout that uses small icons for the action type - a sword for melee hits, a bow icon for ranged attacks, a magic glyph for spells, a critical-hit marker, etc. - and highlights the actor names.',
 								'A line of the form "Eleanor hits Treant Sapling for 23 points of damage." becomes a compact line that visually reads "Eleanor [sword-icon] Treant Sapling > 23 DMG" - the action icon and the small ">" arrow between actor and damage are both custom glyphs from the bundled gameicons.ttf font. Actor name colours come from the Actor 1 / Actor 2 / You entries in Settings -> Font Colors.',
 								'Actor names are coloured according to who they are: yourself, a party member, an alliance member, or an unrelated player / monster - each gets its own slot in the Font Colors palette.',
-								'FancyChat is the only combat-log formatter that should be active - running another chat-modifying addon at the same time is not supported (see Tips -> Compatibility with other chat addons).',
+								'FancyChat is the only combat-log formatter that should be active - running another chat-modifying addon at the same time is not officially supported, though you can try your luck by loading FancyChat last in your default script (see Tips -> Compatibility with other chat addons).',
 								'The "Colorblind mode" option in Extra swaps the damage-done / damage-taken colours to a red-green-friendly palette.'
 						  }
 help.chatwindowZoneSearch = {
@@ -229,9 +229,10 @@ help.tipsDataLocation = {
 
 help.tipsAddonCompatibility = {
 	'Compatibility with other chat addons',
-	'FancyChat is NOT designed to be used alongside other addons that modify, reformat, or recolour chat messages. Combat-log enhancers such as simplelog, alternative chat replacements, or anything that rewrites incoming chat lines is not supported.',
-	'Running two chat-handling addons at the same time will produce visual conflicts (duplicated lines, broken colours, mangled formatting, missing spaces, etc.) and is not a configuration FancyChat tries to recover from.',
-	'If you want to use FancyChat, unload other chat-modifying addons first ("/addon unload <name>") or remove them from your default load list. If you prefer a different chat addon, unload FancyChat instead.',
+	'FancyChat is NOT designed to be used alongside other addons that modify, reformat, or recolour chat messages. Combat-log enhancers such as simplelog, alternative chat replacements, or anything that rewrites incoming chat lines is not officially supported - meaning FancyChat will not be changed on its side to make them work.',
+	'Running two chat-handling addons at the same time can produce visual conflicts (duplicated lines, broken colours, mangled formatting, missing spaces, etc.) and is not a configuration FancyChat tries to recover from.',
+	'That said, some other addons may happen to be compatible - feel free to try your luck. For best odds, load FancyChat as one of the LAST entries in your Ashita default script so it gets the final pass over the chat stream.',
+	'If conflicts arise anyway, unload the other chat-modifying addon ("/addon unload <name>") or remove it from your default load list. If you prefer that other addon, unload FancyChat instead.',
 };
 
 help.tipsSections = { help.tipsRestoreLegacy, help.tipsCleanCombat, help.tipsHidden, help.tipsSecondChat, help.tipsDataLocation, help.tipsAddonCompatibility };

@@ -20,6 +20,8 @@
 
 If you want Fancychat to load automatically at every game launch, add `/addon load fancychat` to your Ashita default script. In Ashita Boot's profile editor, that's the **Default Script** field.
 
+> **Tip:** if you're loading other chat-touching add-ons alongside Fancychat, put `/addon load fancychat` **last** in the list. Fancychat is unsupported in that configuration, but loading it last gives the best odds of avoiding visual conflicts. See [Compatibility](Compatibility.md).
+
 ## Updating
 
 1. Your settings and Notepad notes live separately in `Ashita/config/addons/fancychat/<character>/settings.json`, so they're preserved automatically across updates — nothing to do.
@@ -35,5 +37,5 @@ Delete the `fancychat/` folder from `Ashita/addons/`. Your per-character setting
 
 ## See also
 
-- [Compatibility](Compatibility.md) — which addons can NOT be loaded alongside Fancychat
+- [Compatibility](Compatibility.md) — what's unsupported alongside Fancychat (and the "try your luck" caveat)
 - [Troubleshooting](Troubleshooting.md) — what to do if the chat plate doesn't appear
