@@ -56,7 +56,6 @@ end
 function M.default_fcw()
 	return T{
 		T{
-			-- cexi
 			LastCommands = T{
 				{}, 0,
 				{'/fish','/sit','/heal','/invite','/decline','/join','/follow','/map','/logout','/shutdown'},
@@ -416,7 +415,6 @@ function M.default_colors()
 		dmggot       = {0xFFFA4343, 0xFFFFA269},
 		spelldmgdone = {0xFFADFF33, 0xFF5EE0DE},
 		spelldmggot  = {0xFFFC2B43, 0xFFE6874C},
-		cexi         = {0xFF00FFB3, 0xFFFF0055},
 	}
 end
 
@@ -445,7 +443,6 @@ M.color_descriptions = {
 	dmggot       = {'Damage Taken',  	   'Highlights damage taken by you or your missed attacks.'},
 	spelldmgdone = {'Spell Dmg Done',      'Highlights spell damage done'},
 	spelldmggot  = {'Spell Dmg Taken',     'Highlights spell damage taken'},
-	cexi         = {'CEXI',                'CEXI content messages'},
 	ability      = {'Ability/Spell',       'Highlights an ability or spell used by an Entity'},
 	you          = {'You',                 'Color highlighting youin combat text.'},
 	actor1       = {'Friend Entity',       'Color highlighting the friendly entity in combat text.\n(i.e. the player, party members, etc.'},

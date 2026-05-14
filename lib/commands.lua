@@ -22,12 +22,6 @@ function M.register()
 
 		e.blocked = true
 
-		--[[  debug_window disabled
-		if (#args == 2 and args[2] == 'debug') then
-			dw.WindowOpened[1] = not dw.WindowOpened[1]
-			return
-		end
-		--]]
 		if (#args == 2 and args[2] == 'bigmode') then
 			fcw[3].BigMode = not fcw[3].BigMode
 			return
@@ -44,75 +38,6 @@ function M.register()
 			return
 		end
 
-		--[[  debug_window disabled
-		if (#args == 2 and args[2] == 'savedebug') then
-			local ts = os.date('[%Y_%m_%d-%H_%M_%S]', os.time())
-			if utils.SaveLogs(b.LogBuffer, nil, 'DEBUG', fcw[1].PlayerName, addon.path, ts) then
-				b.LogBuffer = {}
-			end
-			return
-		end
-		--]]
-
-		--[[  debug_window disabled
-		if (#args > 3 and args[2] == 'test' and tonumber(args[3]) >= 0 and tonumber(args[3]) <= 255) then
-			local test_string = ''
-			local test_i = 4
-			while args[test_i] ~= nil do
-				test_string = test_string..args[test_i]..' '
-				test_i = test_i + 1
-			end
-			AshitaCore:GetChatManager():AddChatMessage(tonumber(args[3]), false, test_string:trimex()..'\127\49')
-			return
-		end
-		--]]
-
-		--[[  debug_window disabled
-		if (#args == 2 and args[2] == 'printdebug') then
-			-- Dump every legacy palette slot to chat with its index as
-			-- the visible label.  Each label is wrapped in its own
-			-- colour escape so FFXI's native chat renderer paints it
-			-- in that palette colour - letting us read the actual RGB
-			-- off a screenshot for any slot the chat.colors table
-			-- doesn't document.
-			--
-			-- Output format (16 labels per AddChatMessage call):
-			--   Header: "== Table 1 (\x1E\NN) ==" / "== Table 2 (\x1F\NN) =="
-			--   Body:   \x1F\NN<NN> repeated, with trailing reset.
-			--
-			-- View in the LEGACY FFXI chat (set blockAll OFF in
-			-- Settings -> Extra) - that's where FFXI itself renders
-			-- the colours; FancyChat's own renderer doesn't speak the
-			-- legacy palette.
-			local function dump_palette(lead_byte, label)
-				AshitaCore:GetChatManager():AddChatMessage(122, false,
-					'== Palette Table '..label..' ('..string.format('\\x%02X', lead_byte)..'\\NN) ==')
-				local line = ''
-				local count = 0
-				for n = 1, 255 do
-					local color  = string.char(lead_byte, n)
-					local reset  = string.char(0x1E, 0x01)
-					line = line..color..string.format('%03d', n)..reset..' '
-					count = count + 1
-					if count == 16 or n == 255 then
-						AshitaCore:GetChatManager():AddChatMessage(6, false, line)
-						line = ''
-						count = 0
-					end
-				end
-			end
-			dump_palette(0x1E, '1')
-			dump_palette(0x1F, '2')
-			AshitaCore:GetChatManager():AddChatMessage(122, false,
-				'== Palette dump complete.  View in legacy chat (blockAll OFF). ==')
-		end
-
-		if (#args == 2 and args[2] == 'helpdebug') then
-			print(#help.foundParent)
-			print(tostring(help.foundAnything))
-			print(table.concat(help.foundParent, ','))
-		end
-		--]]
 
 		if not fcw[1].Closing and fcw[1].InitDone and fcw[1].LoggedIn then
 			if (#args == 2 and args[2] == 'guideme') then

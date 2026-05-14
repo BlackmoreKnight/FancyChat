@@ -3,7 +3,6 @@ require('win32types');
 
 local ffi      = require('ffi');
 local d3d      = require('d3d8');
-local emojis   = require('emojis');
 
 local C        = ffi.C;
 local d3d8dev  = d3d.get_device();
@@ -1326,10 +1325,10 @@ utils.FFXI_MAP = {
 	['\x81\xAA'] = utf8.char(0x2191),   -- ↑
 	['\x81\xAB'] = utf8.char(0x2193),   -- ↓
 	['\x81\x99'] = utf8.char(0x2606),   -- ☆
-	['\x81\x9A'] = utf8.char(0x2605),   -- ★  (CEXI custom)
+	['\x81\x9A'] = utf8.char(0x2605),   -- ★ 
 	['\x81\x9C'] = utf8.char(0x0A66),   -- ০  (FFXI: drawn as 'O' in client font)
-	['\x81\x9E'] = utf8.char(0x25C7),   -- ◇  (CEXI custom)
-	['\x81\x9F'] = utf8.char(0x25C6),   -- ◆  (CEXI custom)
+	['\x81\x9E'] = utf8.char(0x25C7),   -- ◇  
+	['\x81\x9F'] = utf8.char(0x25C6),   -- ◆  
 	['\x81\xAC'] = utf8.char(0x2014),   -- —
 	['\x81\xF4'] = utf8.char(0x266A),   -- ♪
 	-- ---- 0x83 lead ----
@@ -2520,75 +2519,6 @@ utils.stringsplit = function(input, sep)
 	return result
 end
 
--- ================================================================
--- Emoji-name parsing (":smile:" -> codepoint).  Rewrites the text
--- in-place, leaving emoji-supplemental glyphs surrounded by '*' so
--- they remain visible in fallback fonts.
--- ================================================================
-
-utils.parseEmoji = function(text)
-	text = text:gsub(':1st_place_medal:', ':first_place_medal:')
-	text = text:gsub(':2nd_place_medal:', ':second_place_medal:')
-	text = text:gsub(':3rd_place_medal:', ':third_place_medal:')
-
-	local idx = 1
-	while idx < #text or idx < 4092 do
-		local b = text:find(':', idx, true)
-		if not b then break end
-
-		local e = text:find(':', b + 1, true)
-		if not e or e - 1 <= 0 then break end
-
-		local cp = emojis[1][text:sub(b + 1, e - 1)]
-		if cp then
-			if cp >= 0x1FA70 and cp <= 0x1FAFF then
-				text = text:sub(1, b - 1) .. '*' .. text:sub(b + 1, e - 1) .. '*' .. text:sub(e + 1, #text)
-			else
-				text = text:sub(1, b - 1) .. utf8.char(cp) .. text:sub(e + 1, #text)
-			end
-			idx = e
-		end
-		idx = b + 1
-	end
-
-	return text
-end
-
--- ================================================================
--- Wrap multi-byte UTF-8 characters in MC color sequences so
--- emojis render in the highlight color used for them.
--- ================================================================
-
-utils.emojiCols = function(text)
-	local out = {}
-	local idx = 1
-	local len = #text
-
-	while idx <= len do
-		local b = text:byte(idx)
-
-		-- 4-byte UTF-8 (U+10000..U+10FFFF) - e.g. 😀
-		if b >= 0xF0 and b <= 0xF4 and idx + 3 <= len then
-			out[#out + 1] = utils.MC(0xFFFBD043)
-			out[#out + 1] = text:sub(idx, idx + 3)
-			out[#out + 1] = utils.MC('reset')
-			idx = idx + 4
-
-		-- 3-byte UTF-8 (U+0800..U+FFFF) - e.g. ❤ ☀ ♻ ✨
-		elseif b >= 0xE0 and b <= 0xEF and idx + 2 <= len then
-			out[#out + 1] = utils.MC(0xFFFBD043)
-			out[#out + 1] = text:sub(idx, idx + 2)
-			out[#out + 1] = utils.MC('reset')
-			idx = idx + 3
-
-		else
-			out[#out + 1] = text:sub(idx, idx)
-			idx = idx + 1
-		end
-	end
-
-	return table.concat(out)
-end
 
 -- ================================================================
 -- Settings repair: prune keys from t2 that no longer exist in t1

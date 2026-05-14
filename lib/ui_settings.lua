@@ -332,7 +332,7 @@ function M.draw_settings_panel()
 				local lb = colorDesc[b] and colorDesc[b][1] or b
 				return la < lb
 			end)
-			local skip = {'combat', 'combatspell', 'cexi'}
+			local skip = {'combat', 'combatspell'}
 			set.colorTextW = 0
 			for _, key in ipairs(keys) do
 				if not utils.FindInStringTable(key, skip, 0) then
@@ -1333,8 +1333,8 @@ function M.draw_settings_panel()
 			local _testers = {
 				{'Zeratia', ''},
 				{'Mod',     ''},
-				{'Carver',  'www.catseyexi.com'},
-				{'Emi',     ''},
+				{'Carver',  ''},
+				{'Emy',     ''},
 				{'Sky',     ''},
 			}
 			for _, _e in ipairs(_testers) do
@@ -1411,7 +1411,7 @@ function M.draw_settings_panel()
 			imgui.PopItemWidth()
 			imgui.Spacing()
 			if imgui.Button('Save##fc_export_save', {80, 0}) then
-				local skipKeys = {'combat', 'combatspell', 'cexi'}
+				local skipKeys = {'combat', 'combatspell'}
 				local payload  = {}
 				for k, v in pairs(allSettings.colors) do
 					if not utils.FindInStringTable(k, skipKeys, 0) then
