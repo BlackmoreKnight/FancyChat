@@ -158,6 +158,8 @@ function M.register()
 			if allSettings.R0warning[1] and uiw.NetStatObj[1] > 0 and ashita.memory.read_uint32(uiw.NetStatObj[1]) == 0 and uiw.NetStatObj[2] > 0 then	
 				AshitaCore:GetChatManager():AddChatMessage(123, false, '[Warning] R0 detected.')
 				AshitaCore:GetChatManager():AddChatMessage(123, false, 'Use /fchat savelogs to save chat logs.')
+				--CEXI extra message
+				AshitaCore:GetChatManager():AddChatMessage(123, false, 'If this is a server crash and you used a pop item, take a FULL screenshot as proof.')
 			end
 		
 			uiw.NetStatObj[2] = ashita.memory.read_uint32(uiw.NetStatObj[1])
@@ -1025,6 +1027,16 @@ function M.register()
 					if(fcw1.TextureIDCompact ~= nil) then
 						if (imguiWrap.ImageButton('TextureIDCompact',fcw1.TextureIDCompact,{tabsH-8,tabsH-8},{0,0},{1,1},-1,{0,0,0,0},{1,1,1,0.7})) then
 							allSettings.CompactTabs = true;
+							-- Invalidate cached tab-bar positions: PosChanged
+							-- on its own is wiped by line ~560 at the top of
+							-- the next frame, so the cached TabsPos/compactPos
+							-- from before any drag would otherwise be reused.
+							fcw1.TabsPos     = nil
+							fcw1.compactPos  = nil
+							fcw1.compactSize = nil
+							fcw2.TabsPos     = nil
+							fcw2.compactPos  = nil
+							fcw2.compactSize = nil
 							fcw1.PosChanged = true
 							fcw2.PosChanged = true
 							SaveSettings();
@@ -1079,6 +1091,15 @@ function M.register()
 						if(fcw1.TextureIDCompact ~= nil) then
 							if imguiWrap.ImageButton('TextureIDCompact', fcw1.TextureIDCompact, {tabsH-8,tabsH-12},{1.05,1.05},{-0.05,-0.05},-1,{0,0,0,0},{1,1,1,0.5}) then
 								allSettings.CompactTabs = false;
+								-- Invalidate cached tab-bar positions: see
+								-- the matching block in the compact-on
+								-- toggle above for the full rationale.
+								fcw1.TabsPos     = nil
+								fcw1.compactPos  = nil
+								fcw1.compactSize = nil
+								fcw2.TabsPos     = nil
+								fcw2.compactPos  = nil
+								fcw2.compactSize = nil
 								fcw1.PosChanged = true
 								fcw2.PosChanged = true
 								SaveSettings();
@@ -1725,12 +1746,20 @@ function M.register()
 			-- value at entry to this block.
 			local maskFirstFrame = set.zoneTip.justAppeared
 
-			-- One-shot focus on appearance.  justAppeared is set true
-			-- by the chat handler on Ctrl+L-click, consumed below at
-			-- end of Begin block so subsequent visible frames don't
-			-- keep stealing focus.
+			-- Force focus every frame the popup is visible.  Strict
+			-- IsWindowHovered (no flags) inside the popup body returns
+			-- true only when this popup is the topmost window at the
+			-- mouse position; without an explicit focus call updated
+			-- ImGui lets the popup drop below other windows (the chat
+			-- plate has NoBringToFrontOnFocus so it never yields on
+			-- its own) and the press-anchored dismissal below then
+			-- reads hovered=false on a click that visually landed on
+			-- the popup, closing it without running the Selectable's
+			-- action.  Same per-frame focus pattern is used by the
+			-- info-button hover tooltip earlier in this file.
+			imgui.SetNextWindowFocus()
+
 			if maskFirstFrame then
-				imgui.SetNextWindowFocus()
 				-- Near-transparent alpha (1/255) on the first render
 				-- frame so the user never sees the popup at the wrong
 				-- position before ImGui's AlwaysAutoResize knows the
@@ -1936,7 +1965,24 @@ function M.register()
 				-- The justAppeared guard suppresses the open-frame
 				-- release (the mouse-up that opened us) from being
 				-- treated as a dismissal release.
-				local hovered = imguiWrap.IsWindowHovered(ImGuiHoveredFlags_RectOnly)
+				--
+				-- Use a direct geometric rect-test here (instead of
+				-- imguiWrap.IsWindowHovered) deliberately.  The wrap
+				-- now uses strict z-order semantics so chat-plate
+				-- handlers don't fire when a popup is on top of them,
+				-- but for the popup's OWN dismissal we want the
+				-- opposite: "did the click land inside my geometric
+				-- rect", regardless of focus / z-order state.  Going
+				-- through the strict wrap here would falsely report
+				-- pressInside=false on clicks that visually landed
+				-- on the popup, and the release dismissal would then
+				-- fire, closing the popup before the Selectable's
+				-- action could run.
+				local pos_x,   pos_y   = imgui.GetWindowPos()
+				local size_x,  size_y  = imgui.GetWindowSize()
+				local mouse_x, mouse_y = imgui.GetMousePos()
+				local hovered = (mouse_x >= pos_x and mouse_x < pos_x + size_x
+				             and mouse_y >= pos_y and mouse_y < pos_y + size_y)
 				if hovered then ResetAutoHideTimer() end
 				if not set.zoneTip.justAppeared then
 					if imIsMouseClicked(FLAG_MouseLeft)

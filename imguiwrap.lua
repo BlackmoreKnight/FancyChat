@@ -72,20 +72,7 @@ end
 
 imguiWrap.IsWindowHovered = function(flags)
 	if imguiWrap.isNewVer then
-		if flags == ImGuiHoveredFlags_RectOnly then
-			local pos_x, pos_y = imgui.GetWindowPos()
-			local size_x, size_y = imgui.GetWindowSize()
-			local mouse_x, mouse_y = imgui.GetMousePos();
-			if mouse_x > pos_x and mouse_x < pos_x + size_x and
-			mouse_y > pos_y and mouse_y < pos_y + size_y
-			then
-				return true
-			else
-				return false
-			end
-		else
-			return imgui.IsWindowHovered(flags)
-		end
+		return imgui.IsWindowHovered(0)
 	else
 		return imgui.IsWindowHovered(flags)
 	end
