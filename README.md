@@ -18,7 +18,7 @@ It replaces FFXI's native chat with a customizable in-game chat overlay: message
 ### Main features
 - **7 chat tabs** to organize messages: All (renamed AllAlt if combat is hidden from it), Combat, Linkshell, Party, Tell, Shout, Custom
 - ${\textsf{\color{cyan}{Compact Combat Log}}}$ — rewrites combat messages into tight icon-based lines (icons are drawn from the bundled `gameicons.ttf` font, so they render reliably in-game)
-- **Actor name coloring** — you, party members, alliance, enemies, and NPCs each get a distinct color
+- **Entity name coloring** — you, party members, alliance, enemies, and NPCs each get a distinct color
 - **Timestamps** — per-line `[HH:MM:SS]` (long) or `[HH:MM]` (short), or a periodic horizontal banner line every 1 / 5 / 10 / 30 / 60 minutes
 - ${\textsf{\color{cyan}{Auto-Hide}}}$ — chat fades out on inactivity and wakes back up on new messages on the active tab, mouse-wheel scrolling, a configured keyboard shortcut, opening the chat input, or NPC dialog events (mouse hover alone does **not** wake it — that's intentional)
 - ${\textsf{\color{cyan}{BigMode}}}$ — full-screen chat history overlay showing 30+ lines at once
@@ -161,9 +161,9 @@ Tabs can be shown as a full tab bar or switched to compact mode (`/fchat compact
 <br></br>
 
 #### Compact Combat Log
-${\textsf{\color{cyan}{Compact Combat Log}}}$ is toggled in **Settings → Extra**. When on, incoming combat messages are rewritten into a condensed, icon-based format to reduce visual noise while keeping every relevant detail visible at a glance. Actor names are coloured by role and damage numbers are highlighted.
+${\textsf{\color{cyan}{Compact Combat Log}}}$ is toggled in **Settings → Extra**. When on, incoming combat messages are rewritten into a condensed, icon-based format to reduce visual noise while keeping every relevant detail visible at a glance. Entity names are coloured by role and damage numbers are highlighted.
 
-Icons used in compact mode (the symbols below are GitHub-rendered approximations; in-game they are drawn as custom glyphs from the bundled `gameicons.ttf`):
+Icons used in compact mode (the symbols below are GitHub-rendered approximations; in-game they are drawn as custom glyphs from the bundled `gameicons.ttf`), something similar to the following:
 <ul>
   <li>${\textsf{\color{white}{⚔}}}$ — melee attack</li>
   <li>${\textsf{\color{white}{🏹}}}$ — ranged attack</li>
@@ -173,7 +173,7 @@ Icons used in compact mode (the symbols below are GitHub-rendered approximations
   <li>${\textsf{\color{white}{✗}}}$ — miss / resist</li>
 </ul>
 
-A ${\textsf{\color{orange}{colorblind mode}}}$ is available in **Settings → Extra**, which swaps the red-green colour palette used for actor names.
+A ${\textsf{\color{orange}{colorblind mode}}}$ is available in **Settings → Extra**, which swaps the red-green colour palette used for entity names.
 
 ##### Combat log filtering
 Three quick toggles in **Settings → Extra** let you narrow the combat tab down:
@@ -277,5 +277,5 @@ Quick reference (see [docs/Data Storage](docs/Data-Storage.md) for the full layo
 A heartfelt thank you to:
 
 - The **[Ashita](https://www.ashitaxi.com/) team** — for all the help and patience answering my questions while building this add-on, and for the framework that makes it possible in the first place.
-- **atom0s** — for the `targets.lua` script that powers Fancychat's actor / target resolution and the infinite patience to guide me through all the RE nuances.
+- **atom0s** — for the `targets.lua` script that powers Fancychat's entity / target resolution and the infinite patience to guide me through all the RE nuances.
 - **Thorny** — for the gdifonts library that powers the custom-font texture rendering pipeline and the invaluable help I received despite all my dull moments.
