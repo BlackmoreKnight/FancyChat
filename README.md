@@ -40,7 +40,7 @@ In game, type `/addon load fancychat` to start it, then `/fchat manual` for the 
 <br></br>
 
 ### Disclaimer
-The current release is compatible with **both ${\textsf{\color{orange}{Ashita 4.30}}}$ and earlier versions** of Ashita. Going forward, however, future releases of Fancychat are likely to target **${\textsf{\color{orange}{Ashita 4.30}}}$ only** — meaning users on older Ashita versions may need to update their Ashita install to keep receiving updates. If you'd rather stay on a stable build, pin to the most recent release that explicitly notes Ashita-pre-4.30 support in the release notes.
+The current release is compatible with **both ${\textsf{\color{orange}{Ashita 4.30}}}$ and earlier versions** of Ashita. Going forward, however, future releases of Fancychat are likely to target **${\textsf{\color{orange}{Ashita 4.30}}}$ only** — meaning users on older Ashita versions may need to update their Ashita install to keep receiving updates.
 
 A few small things worth knowing up front:
 - Some features assume a 16:9-ish screen ratio. On very wide / narrow resolutions you may need to nudge things back into place via **Settings → Chat Window → Position Offsets**.
