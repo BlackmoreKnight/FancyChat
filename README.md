@@ -274,6 +274,8 @@ Quick reference (see [docs/Data Storage](docs/Data-Storage.md) for the full layo
 
 ### Credits
 
+- **game-icons.net** [link](https://https://game-icons.net/) for the gameicons.ttf font.
+  
 A heartfelt thank you to:
 
 - The **[Ashita](https://www.ashitaxi.com/) team** — for all the help and patience answering my questions while building this add-on, and for the framework that makes it possible in the first place.
