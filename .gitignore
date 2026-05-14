@@ -1,9 +1,6 @@
 # In-game data — generated at runtime, per-character, not source
 logs/
 
-# Per-character color set exports (created on demand by Settings → Export Colors)
-chatcolors/
-
 # Backup files left by editing tools
 *.bak_*
 *.preMod_*
