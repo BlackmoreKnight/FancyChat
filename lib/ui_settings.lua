@@ -8,14 +8,15 @@ local utils     = require('utils')
 local help      = require('help')
 local state     = require('lib.state')
 
-local fcw           = state.fcw
-local tab           = state.tab
-local set           = state.set
-local par           = state.par
-local b             = state.b
-local allSettings   = state.allSettings
-local defaultColors = state.defaultColors
-local colorDesc     = state.colorDesc
+local fcw            = state.fcw
+local tab            = state.tab
+local set            = state.set
+local par            = state.par
+local b              = state.b
+local allSettings    = state.allSettings
+local defaultColors  = state.defaultColors
+local colorDesc      = state.colorDesc
+local gamepadButtons = state.gamepadButtons
 
 local M = {}
 
@@ -40,6 +41,11 @@ function M.draw_settings_panel()
 			set.CustomTabModes[ct] = allSettings.CustomTabModes[ct]
 		end
 		set.ChatLines = allSettings.ChatLines
+		-- Drop any pending gamepad-binding listen when the panel is
+		-- closed - otherwise the user could walk away from Settings
+		-- with a listen still armed and accidentally rebind an action
+		-- by pressing a controller button.
+		gamepadButtons.listenKey = nil
 		return
 	end
 
@@ -248,11 +254,6 @@ function M.draw_settings_panel()
 				SaveSettings()
 			end
 			imgui.Dummy({0, 5})
-			if imgui.Checkbox('Gampad Chat Navigation##GamepadNav', {allSettings.GamepadNav[1]}) then
-				allSettings.GamepadNav[1] = not allSettings.GamepadNav[1]
-				SaveSettings()
-			end
-			imgui.Dummy({0, 5})
 			if imgui.Checkbox('Enable Auto-Hide window', {allSettings.AutoHideWindow[1]}) then
 				allSettings.AutoHideWindow[1] = not allSettings.AutoHideWindow[1]
 				SaveSettings()
@@ -332,7 +333,7 @@ function M.draw_settings_panel()
 				local lb = colorDesc[b] and colorDesc[b][1] or b
 				return la < lb
 			end)
-			local skip = {'combat', 'combatspell'}
+			local skip = {'combat', 'combatspell', 'cexi'}
 			set.colorTextW = 0
 			for _, key in ipairs(keys) do
 				if not utils.FindInStringTable(key, skip, 0) then
@@ -597,6 +598,138 @@ function M.draw_settings_panel()
 		end
 
 		----------------------------------------------------------------
+		-- Tab: Gamepad
+		----------------------------------------------------------------
+		if imgui.BeginTabItem('Gamepad', nil) then
+			imguiWrap.BeginChild('##Gamepad Child',
+				{(setsizex * 3.8 / 3.9) - (12 * (1 - (setsizex * 3.8 / 1920))) - 3, setsizey * 2.7 / 2.8 - 60}, true)
+
+			-- Resolve an XInput button id (e.g. 12) to a label for the
+			-- UI.  In Xbox-controller mode we look up the friendly name
+			-- ('A', 'LB', 'RT', ...) from utils.gamepadButtonList; in
+			-- generic mode (default) we just show the raw button index,
+			-- because non-Xbox pads map physical buttons to different
+			-- XInput numbers than an Xbox pad would.
+			local function gp_label_for(id)
+				if allSettings.XboxController[1] then
+					local idx = utils.findIndexOfValue(utils.gamepadButtonList, id)
+					if idx then return utils.gamepadButtonList[idx][1] end
+				end
+				return tostring(id)
+			end
+
+			-- Draw the info-icon at a fixed column (relative to the
+			-- child window's left edge) instead of right after the
+			-- label, so the icon stacks vertically across rows whose
+			-- labels have different widths.  Column chosen wide enough
+			-- to clear the longest action label currently in use.
+			local GP_TOOLTIP_X = 290
+
+			local function gp_inline_tooltip(message)
+				imgui.SameLine(GP_TOOLTIP_X)
+				imguiWrap.Image(fcw[1].TextureIDInfo, {15, 15})
+				if imgui.IsItemHovered(0) then
+					imgui.BeginTooltip()
+					imgui.SetTooltip(utils.breakLine(message, 40))
+					imgui.EndTooltip()
+				end
+			end
+
+			-- Draw one row: text label + a "listen" button showing the
+			-- current binding.  Clicking the button arms a one-shot
+			-- gamepad capture (handled in lib/input.lua's xinput_button
+			-- callback); the very next button press becomes the new
+			-- binding.  Clicking the same button again - or pressing
+			-- Escape - cancels.  If the captured button was already
+			-- bound to another action, the two actions swap.
+			--
+			-- color (optional) is an {r,g,b,a} table; when set the
+			-- label is drawn via TextColored, used to highlight the
+			-- Modifier row (the gate that has to be held for every
+			-- other binding to fire).
+			local function draw_gp_row(label, key, tooltip, color)
+				if color then
+					imgui.TextColored(color, label)
+				else
+					imgui.Text(label)
+				end
+				if tooltip then gp_inline_tooltip(tooltip) end
+				local is_listen = (gamepadButtons.listenKey == key)
+				local btn_text  = is_listen
+					and '(press a gamepad button - Esc to cancel)'
+					or  gp_label_for(allSettings.GamepadBindings[key])
+				-- Highlight the active row so it's obvious which one
+				-- is waiting for input.
+				if is_listen then
+					imgui.PushStyleColor(ImGuiCol_Button,        {0.55, 0.35, 0.10, 1.0})
+					imgui.PushStyleColor(ImGuiCol_ButtonHovered, {0.65, 0.45, 0.15, 1.0})
+					imgui.PushStyleColor(ImGuiCol_ButtonActive,  {0.75, 0.55, 0.20, 1.0})
+				end
+				if imgui.Button(btn_text..'##GP_'..key, {dsize.x / 6, 0}) then
+					if is_listen then
+						gamepadButtons.listenKey = nil
+					else
+						gamepadButtons.listenKey = key
+					end
+				end
+				if is_listen then imgui.PopStyleColor(3) end
+				imgui.Dummy({0, 8})
+			end
+
+			-- Top-of-tab toggles: master enable + label style.
+			if imgui.Checkbox('Enable Gamepad Chat Navigation##GamepadNav', {allSettings.GamepadNav[1]}) then
+				allSettings.GamepadNav[1] = not allSettings.GamepadNav[1]
+				SaveSettings()
+			end
+			AddTooltip('Master switch for gamepad input. When off, none of the bindings below fire in-game and the modifier button is ignored.', 0)
+			imgui.Dummy({0, 5})
+			if imgui.Checkbox('Xbox Controller##XboxLabels', {allSettings.XboxController[1]}) then
+				allSettings.XboxController[1] = not allSettings.XboxController[1]
+				SaveSettings()
+			end
+			AddTooltip('When on, buttons are labelled with their Xbox names (A, B, LB, RT, ...). When off, buttons are labelled with their raw XInput index - safer for non-Xbox controllers whose physical layout maps to different XInput numbers.', 0)
+			imgui.Dummy({0, 15})
+
+			imgui.Text('Gamepad button bindings')
+			AddTooltip('Click a binding to listen for the next gamepad button press. If the chosen button is already used by another action, the two actions swap. Stick scroll axes are not remappable.', 0)
+			imgui.Dummy({0, 10})
+
+			draw_gp_row('Modifier (hold to enable navigation)', 'modifier',
+				'While held, the other gamepad bindings below become active. All other buttons are blocked from the rest of the game during this time.',
+				{1.00, 0.65, 0.20, 1.0})
+			draw_gp_row('Cycle tabs (window 1)',     'cyclePrimaryTab')
+			draw_gp_row('Cycle tabs (window 2)',     'cycleSecondaryTab')
+			draw_gp_row('Snap chat to bottom',       'snapToBottom')
+			draw_gp_row('Toggle BigMode overlay',    'toggleBigMode')
+			draw_gp_row('Open FFXI chat input',      'openChatInput')
+			draw_gp_row('Submit input as command',   'submitInput',
+				'Sends the line currently in the FFXI chat input box.')
+			draw_gp_row('Command history: previous', 'historyPrev')
+			draw_gp_row('Command history: next',     'historyNext')
+			draw_gp_row('Preset command: previous',  'presetPrev')
+			draw_gp_row('Preset command: next',      'presetNext')
+
+			imgui.Dummy({0, 6})
+			if imgui.Button('Reset to defaults##GPReset') then
+				allSettings.GamepadBindings.modifier          = 8
+				allSettings.GamepadBindings.cyclePrimaryTab   = 9
+				allSettings.GamepadBindings.cycleSecondaryTab = 17
+				allSettings.GamepadBindings.snapToBottom      = 13
+				allSettings.GamepadBindings.toggleBigMode     = 15
+				allSettings.GamepadBindings.openChatInput     = 14
+				allSettings.GamepadBindings.submitInput       = 12
+				allSettings.GamepadBindings.historyPrev       = 0
+				allSettings.GamepadBindings.historyNext       = 1
+				allSettings.GamepadBindings.presetPrev        = 2
+				allSettings.GamepadBindings.presetNext        = 3
+				SaveSettings()
+			end
+
+			imgui.EndChild()
+			imgui.EndTabItem()
+		end
+
+		----------------------------------------------------------------
 		-- Tab: Extra
 		----------------------------------------------------------------
 		if imgui.BeginTabItem('Extra', nil) then
@@ -682,7 +815,7 @@ function M.draw_settings_panel()
 				allSettings.CompactCombat[1] = not allSettings.CompactCombat[1]
 				SaveSettings()
 			end
-			AddTooltip('Disable if you have other chat-modifying addons such as simplelog enabled and you see conflicts. (Loading FancyChat LAST in your default script gives the best odds of it working anyway.)', 4)
+			AddTooltip('Disable if you have other addons such as simplelog enabled.', 4)
 			imgui.Dummy({0, 5})
 			imgui.Dummy({5, 0}) imgui.SameLine()
 			if imgui.Checkbox('Timestamp', {allSettings.timeStamp[1]}) then
@@ -913,7 +1046,7 @@ function M.draw_settings_panel()
 		----------------------------------------------------------------
 		-- Tab: CL Filters
 		----------------------------------------------------------------
-		if imgui.BeginTabItem('CL Filters', nil) then
+		if imgui.BeginTabItem('Filters', nil) then
 			imguiWrap.BeginChild('##Filters Child',
 				{(setsizex * 3.8 / 3.9) - (12 * (1 - (setsizex * 3.8 / 1920))) - 3, setsizey * 2.7 / 2.8 - 60}, true)
 			imgui.PushTextWrapPos(imgui.GetWindowWidth() * 0.96)
@@ -1333,7 +1466,7 @@ function M.draw_settings_panel()
 			local _testers = {
 				{'Zeratia', ''},
 				{'Mod',     ''},
-				{'Carver',  ''},
+				{'Carver',  'www.catseyexi.com'},
 				{'Emy',     ''},
 				{'Sky',     ''},
 			}
@@ -1411,7 +1544,7 @@ function M.draw_settings_panel()
 			imgui.PopItemWidth()
 			imgui.Spacing()
 			if imgui.Button('Save##fc_export_save', {80, 0}) then
-				local skipKeys = {'combat', 'combatspell'}
+				local skipKeys = {'combat', 'combatspell', 'cexi'}
 				local payload  = {}
 				for k, v in pairs(allSettings.colors) do
 					if not utils.FindInStringTable(k, skipKeys, 0) then

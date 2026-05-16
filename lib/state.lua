@@ -32,6 +32,7 @@ M.tab = {
 
 -- Settings UI scratch state.
 M.set = {
+	isCEXI              = true,
 	colorTextW          = 1,
 	alertList           = {},
 	alertBuffer         = T{},
@@ -122,6 +123,7 @@ M.par = {
 	LoginTime		= 0,
 	tabmode         = nil,
 	checkAgain      = {0, ''},
+	emojiChannels   = {6, 14, 205, 213, 214, 217},
 	allowed         = {0, 0},
 	dumping         = false,
 	LastMsgLength   = 0,
@@ -133,6 +135,11 @@ M.par = {
 	CombatCutIdx    = 0,
 	FormatTS        = {'[%H:%M:%S]', '[%H:%M]'},
 	LastMessage     = '',
+	-- Rolling window of recently-emitted message ASCII-keys for
+	-- duplicate detection (see lib/parser.lua dedup block).  Each
+	-- entry is { key = asciiKey, t = os_time() }; capped at 10
+	-- entries and pruned to a 1-second sliding window every pass.
+	RecentMessages  = {},
 	IsInConv        = false,
 	DamageDone      = false,
 	DamageGot       = false,

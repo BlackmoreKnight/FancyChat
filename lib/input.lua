@@ -16,6 +16,44 @@ local M = {}
 function M.register()
 
 	ashita.events.register('xinput_button', 'xinput_button_callback1', function (e)
+		-- Listen-for-rebind path.  Activated from the Settings -> Gamepad
+		-- tab; captures the very next non-axis button press and writes it
+		-- into the corresponding GamepadBindings entry, then exits listen
+		-- mode.  Runs BEFORE the GamepadNav gate so users can configure
+		-- bindings without first enabling navigation.
+		if gamepadButtons.listenKey ~= nil then
+			e.blocked = true             -- swallow all gamepad input while listening
+			if e.state ~= 1 then return end   -- only react to the press, not the release
+			local btn = e.button
+			-- Reject analog stick axes (not user-remappable).  In
+			-- Xbox-controller mode, also reject buttons that aren't
+			-- in the documented friendly-name list so the captured
+			-- value always renders to a known label; in generic mode
+			-- (the default) accept any digital button so users on
+			-- non-Xbox pads can bind whatever indexes their hardware
+			-- emits.
+			if btn == 18 or btn == 19 or btn == 20 or btn == 21 then return end
+			if allSettings.XboxController[1]
+			   and not utils.findIndexOfValue(utils.gamepadButtonList, btn) then
+				return
+			end
+			local target_key = gamepadButtons.listenKey
+			local old_id     = allSettings.GamepadBindings[target_key]
+			-- If the captured button is already bound to some OTHER
+			-- action, swap them - no orphan slots, no need to manually
+			-- un-bind first.
+			for k, v in pairs(allSettings.GamepadBindings) do
+				if k ~= target_key and v == btn then
+					allSettings.GamepadBindings[k] = old_id
+					break
+				end
+			end
+			allSettings.GamepadBindings[target_key] = btn
+			SaveSettings()
+			gamepadButtons.listenKey = nil
+			return
+		end
+
 		if not allSettings.GamepadNav[1] then return end
 
 		gamepadButtons.buttonsCDready = os.clock() - gamepadButtons.buttonsCD > 0.15
@@ -26,8 +64,13 @@ function M.register()
 			AshitaCore:GetChatManager():QueueCommand(1, '/sendkey enter up')
 		end
 
-		-- Button 8 (LB) hold enables gamepad navigation mode.
-		if e.button == 8 then
+		-- Snapshot bindings once per event so each `e.button == X` test
+		-- uses a stable value (and one fewer table lookup per branch).
+		local GB = allSettings.GamepadBindings
+
+		-- Modifier button (default LB) hold enables gamepad navigation
+		-- mode.  All other bindings only fire while the modifier is held.
+		if e.button == GB.modifier then
 			if e.state == 1 then
 				ResetAutoHideTimer()
 				gamepadButtons.enabled = true
@@ -50,8 +93,8 @@ function M.register()
 			e.blocked = true
 		end
 
-		-- Button 9 (RB): cycle primary chat's tab.
-		if e.button == 9 and not fcw[1].BufferBusy and gamepadButtons.buttonsCDready then
+		-- Cycle primary chat's tab.
+		if e.button == GB.cyclePrimaryTab and not fcw[1].BufferBusy and gamepadButtons.buttonsCDready then
 			local tab_id = utils.FindInTable(tab.Tabs, allSettings.SelectedTab)
 			if tab_id then
 				if tab_id == #tab.Tabs then
@@ -64,8 +107,8 @@ function M.register()
 			return
 		end
 
-		-- Button 17 (RT): cycle secondary chat's tab.
-		if allSettings.SecondChat[1] and e.button == 17 and not fcw[1].BufferBusy and gamepadButtons.buttonsCDready then
+		-- Cycle secondary chat's tab.
+		if allSettings.SecondChat[1] and e.button == GB.cycleSecondaryTab and not fcw[1].BufferBusy and gamepadButtons.buttonsCDready then
 			local tab_id = utils.FindInTable(tab.Tabs, allSettings.SelectedTab2)
 			if tab_id then
 				if tab_id == #tab.Tabs then
@@ -78,7 +121,8 @@ function M.register()
 			return
 		end
 
-		-- Buttons 19 / 21 (left stick / right stick Y-axis): analog scroll for primary / secondary.
+		-- Buttons 19 / 21: analog stick scroll for primary / secondary.
+		-- (Not user-remappable - these are stick axes, not digital buttons.)
 		if e.button == 19 then
 			gamepadButtons.scroll1 = (e.state ~= 0) and (e.state / math.abs(e.state)) or 0
 		end
@@ -98,23 +142,23 @@ function M.register()
 			return
 		end
 
-		-- Button 13 (B): snap-to-bottom on every visible chat.
-		if e.button == 13 and e.state == 1 then
+		-- Snap-to-bottom on every visible chat.
+		if e.button == GB.snapToBottom and e.state == 1 then
 			if fcw[1].ScrolledBack > 0 then ResetScrolling(1) end
 			if fcw[2].ScrolledBack > 0 then ResetScrolling(2) end
 			if fcw[3].ScrolledBack > 0 then ResetScrolling(3, fcw[3].ChatLines) end
 			return
 		end
 
-		-- Button 15 (Y): toggle BigMode.
-		if e.button == 15 and e.state == 1 and gamepadButtons.buttonsCDready then
+		-- Toggle BigMode.
+		if e.button == GB.toggleBigMode and e.state == 1 and gamepadButtons.buttonsCDready then
 			fcw[3].BigMode = not fcw[3].BigMode
 			gamepadButtons.buttonsCD = os.clock()
 			return
 		end
 
-		-- Button 14 (X): open the FFXI chat input box.
-		if e.button == 14 and e.state == 1
+		-- Open the FFXI chat input box.
+		if e.button == GB.openChatInput and e.state == 1
 			and AshitaCore:GetChatManager():IsInputOpen() == 0x00
 			and gamepadButtons.buttonsCDready then
 			AshitaCore:GetChatManager():QueueCommand(-1, '/sendkey space down')
@@ -123,8 +167,8 @@ function M.register()
 			return
 		end
 
-		-- Button 12 (A): submit current input as a command.
-		if e.button == 12 and e.state == 1
+		-- Submit current input as a command.
+		if e.button == GB.submitInput and e.state == 1
 			and AshitaCore:GetChatManager():IsInputOpen() == 0x11
 			and gamepadButtons.buttonsCDready then
 			AshitaCore:GetChatManager():QueueCommand(-1, '/sendkey enter down')
@@ -137,10 +181,9 @@ function M.register()
 			return
 		end
 
-		-- Buttons 0 / 1 (D-pad Up / Down): cycle through user-typed command history
-		-- (0 = Up = older / previous; 1 = Down = newer / next).
+		-- Cycle through user-typed command history.
 		if #fcw[1].LastCommands[1] > 0 then
-			if e.button == 0 and e.state == 1
+			if e.button == GB.historyPrev and e.state == 1
 				and AshitaCore:GetChatManager():IsInputOpen() == 0x11
 				and gamepadButtons.buttonsCDready then
 				local nextCommandIdx = fcw[1].LastCommands[2] + 1
@@ -154,7 +197,7 @@ function M.register()
 				gamepadButtons.buttonsCD = os.clock()
 				return
 			end
-			if e.button == 1 and e.state == 1
+			if e.button == GB.historyNext and e.state == 1
 				and AshitaCore:GetChatManager():IsInputOpen() == 0x11
 				and gamepadButtons.buttonsCDready then
 				local nextCommandIdx = fcw[1].LastCommands[2] - 1
@@ -170,9 +213,8 @@ function M.register()
 			end
 		end
 
-		-- Buttons 2 / 3 (D-pad Left / Right): cycle through preset (`!mog`, `!chef`, ...) commands
-		-- (2 = Left = previous; 3 = Right = next).
-		if e.button == 3 and e.state == 1
+		-- Cycle through preset (`!mog`, `!chef`, ...) commands.
+		if e.button == GB.presetNext and e.state == 1
 			and AshitaCore:GetChatManager():IsInputOpen() == 0x11
 			and gamepadButtons.buttonsCDready then
 			local nextCommandIdx = fcw[1].LastCommands[4] + 1
@@ -182,7 +224,7 @@ function M.register()
 			gamepadButtons.buttonsCD = os.clock()
 			return
 		end
-		if e.button == 2 and e.state == 1
+		if e.button == GB.presetPrev and e.state == 1
 			and AshitaCore:GetChatManager():IsInputOpen() == 0x11
 			and gamepadButtons.buttonsCDready then
 			local nextCommandIdx = fcw[1].LastCommands[4] - 1
@@ -207,6 +249,14 @@ function M.register()
 		-- buffer, bypassing ImGui's input routing entirely.
 		if set.zoneTip.visible and keyptr[1] ~= 0 then
 			set.zoneTip.visible = false
+		end
+
+		-- Escape also cancels an in-progress gamepad-binding listen
+		-- (Settings -> Gamepad tab).  Same raw-scancode read for the
+		-- same reason: the user may not have ImGui focus on the
+		-- Settings window when they hit Esc to bail out.
+		if gamepadButtons.listenKey ~= nil and keyptr[1] ~= 0 then
+			gamepadButtons.listenKey = nil
 		end
 
 		-- Pressing Enter while typing in the chat input commits the line

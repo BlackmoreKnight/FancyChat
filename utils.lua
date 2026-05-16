@@ -369,7 +369,29 @@ local utils = {
 		{'Alt',   56},
 		{'Ctrl',  29},
 	},
-	
+
+	-- XInput button list used by the Settings -> Gamepad tab.  Each
+	-- row is { friendly label, XInput button index }.  The index is
+	-- the value Ashita's xinput_button event emits in e.button.  Only
+	-- digital buttons are listed here - analog stick scroll axes
+	-- (18 / 19 / 20 / 21) are intentionally NOT user-remappable.
+	gamepadButtonList = T{
+		{'D-pad Up',           0},
+		{'D-pad Down',         1},
+		{'D-pad Left',         2},
+		{'D-pad Right',        3},
+		{'Menu (Start)',       4},
+		{'View (Back)',        5},
+		{'LB',                 8},
+		{'RB',                 9},
+		{'A',                 12},
+		{'B',                 13},
+		{'X',                 14},
+		{'Y',                 15},
+		{'LT',                16},
+		{'RT',                17},
+	},
+
 	combatwords = T{'hit', 'damage', 'points', 'readies', 'heal'},
 
 	-- Forward-prompt sentinel byte sequences (used to recognise a
@@ -646,11 +668,16 @@ end
 -- collapsible section list (accordion).
 -- ----------------------------------------------------------------
 
--- Mirror the Python downloader's folder_safe(): only '/' is illegal in
--- a Windows folder name; brackets, parens, apostrophes, '#', spaces
--- etc. are preserved as-is.
+-- Mirror the Python downloader's folder_safe(): '/' is illegal in a
+-- Windows folder name and gets turned into '_'.  '#' is technically
+-- legal on disk but trips up some shells / path-resolvers, so the
+-- on-disk pack standardised on '-' instead; we apply the same rewrite
+-- here when probing the folder.  Brackets, parens, apostrophes,
+-- spaces etc. are preserved as-is.
 local function localMapFolderName(zoneName)
-	return (zoneName or ''):gsub('/', '_')
+	return (zoneName or '')
+		:gsub('/', '_')
+		:gsub('#', '-')
 end
 
 -- Section ordering for the popup.  User-specified:
@@ -1233,6 +1260,39 @@ end
 
 utils.cleanMC = function(text)
 	return text:gsub('\\§........ç\\', '')
+end
+
+-- ----------------------------------------------------------------
+-- asciiKey: canonicalise a chat line for duplicate detection.
+--
+-- Returns a string containing ONLY printable-ASCII bytes (0x20-0x7E)
+-- from `text`, with a leading "[HH:MM:SS] " / "[HH:MM] " timestamp
+-- prefix removed first (if the parser added one).  Every other byte
+-- is stripped: FFXI legacy colour escapes (\x1E\NN, \x1F\NN), MC
+-- marker pairs (\\§........ç\\), SJIS multibyte runs, control bytes,
+-- auto-translate sentinels, etc.
+--
+-- Two messages whose asciiKey results are equal are treated as
+-- duplicates regardless of cosmetic byte-level differences that
+-- would otherwise defeat a raw byte-compare.
+-- ----------------------------------------------------------------
+utils.asciiKey = function(text)
+	if not text or text == '' then return '' end
+	-- Drop a leading bracketed time of the form "[digits-and-colons]"
+	-- followed by optional whitespace.  Covers both the FormatTS[1]
+	-- (%H:%M:%S) and FormatTS[2] (%H:%M) shapes from state.lua.
+	text = text:gsub('^%[[%d:]+%]%s*', '', 1)
+	-- Keep only 0x20-0x7E.  Anything else - including 0x00-0x1F
+	-- control bytes, 0x7F DEL, and 0x80-0xFF high bytes - is dropped.
+	local out, n = {}, 0
+	for i = 1, #text do
+		local b = string.byte(text, i)
+		if b >= 0x20 and b <= 0x7E then
+			n = n + 1
+			out[n] = string.char(b)
+		end
+	end
+	return table.concat(out)
 end
 
 -- ================================================================

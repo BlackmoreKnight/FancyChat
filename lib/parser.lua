@@ -25,7 +25,7 @@
 	Helper functions kept here because they only make sense in the
 	parser context:
 	  CleanTextFunctionNew  Byte-pass cleaner: strips colors, FFXI bytes,
-	                        SJIS multibytes.
+	                        SJIS multibytes, optional emoji substitution.
 	  HandleSpecial    Find the [prefix..suffix] span in a chat line
 	                   and return an MCList tuple to colorize it.
 	  CheckSpecial     Mode-specific dispatcher for HandleSpecial
@@ -78,6 +78,7 @@ local string_len   = string.len
 local string_lower = string.lower
 local string_upper = string.upper
 local table_insert = table.insert
+local table_remove = table.remove
 local math_floor   = math.floor
 local math_min     = math.min
 local math_max     = math.max
@@ -97,6 +98,8 @@ local utils_IsInTable              = utils.IsInTable
 local utils_CountExtraBytesT       = utils.CountExtraBytesT
 local utils_utf8split              = utils.utf8split
 local utils_ParseUrlLink           = utils.ParseUrlLink
+local utils_parseEmoji             = utils.parseEmoji
+local utils_emojiCols              = utils.emojiCols
 local utils_MC                     = utils.MC
 local utils_MCCheck                = utils.MCCheck
 local utils_LoadCustomFilters      = utils.LoadCustomFilters
@@ -283,7 +286,10 @@ _G.HandleSpecial = M.HandleSpecial
 -- ===================================================================
 -- CheckSpecial: dispatch by MessageMode to the right HandleSpecial
 -- pattern.  Recognises:
+--   * CEXI accumulators (linkshell-points / activity-points / summit
+--     objectives / point accumulation / partyfinder)
 --   * Loot results: You find / synth / throw / lot / sell / buy
+--   * Quest accept / complete (CEXI)
 --   * Level attain (with icons.LVLUP), caught/learn
 --   * Item obtain / key-item / bazaar / use
 --   * Exp / limit gain (with icons.EXP)
@@ -415,6 +421,36 @@ function M.CheckSpecial(newText, col, cutIdx)
 	if par.MessageMode == 138 then
 		if newText:find(' bought ') or par.checkAgain[2] == 'bazaar' then
 			return HandleSpecial(newText, 'bazaar', ' bought ', '%.', cutIdx, allSettings.colors.obtained[1])
+		end
+	end
+	
+	if set.isCEXI and (par.MessageMode == 9 or par.MessageMode == 127 or par.MessageMode == 121) then
+		if newText:find('Now accumulating linkshell points for ') or par.checkAgain[2] == 'CE-acc' then
+			return HandleSpecial(newText, 'CE-acc', 'Now accumulating linkshell points for ', '%.', cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find('Activity Points: ') or par.checkAgain[2] == 'CE-AP' then
+			return HandleSpecial(newText, 'CE-AP', 'Activity Points: ', '%.', cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find('Summit Objective:') or par.checkAgain[2] == 'CE-SO' then
+			return HandleSpecial(newText, 'CE-SO', 'Summit Objective:', '%.', cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find('Summit Bonus:') or par.checkAgain[2] == 'CE-SB' then
+			return HandleSpecial(newText, 'CE-SB', 'Summit Bonus:', nil, cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find('Summit of the Stars perk') or par.checkAgain[2] == 'CE-SP' then
+			return HandleSpecial(newText, 'CE-SP', 'now active:', nil, cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find(' activity points%.') or par.checkAgain[2] == 'CE-AP2' then
+			return HandleSpecial(newText, 'CE-AP2', 'gains', '%.', cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find('Point Accumulation:') or par.checkAgain[2] == 'CE-PA' then
+			return HandleSpecial(newText, 'CE-PA', 'Point Accumulation:', '%.', cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find('PartyFinder') or par.checkAgain[2] == 'CE-PF' then
+			return HandleSpecial(newText, 'CE-PF', nil, '%[PartyFinder', cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find('completed a special venture') or par.checkAgain[2] == 'CE-venC' then
+			return HandleSpecial(newText, 'CE-venC', nil, 'You have completed a special venture objective%. %(Progress: [0-9]*/[0-9]*%)', cutIdx, 0xFFFFD500)
+		elseif newText:find('Defeat Mobs') or par.checkAgain[2] == 'CE-DM' then
+			return HandleSpecial(newText, 'CE-DM', 'Defeat Mobs ', ' %(', cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find('Quest Accepted:') or par.checkAgain[2] == 'CE-QA' then
+			return HandleSpecial(newText, 'CE-QA', nil, utf8.char(0x25C7)..' Quest Accepted:', cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find('Quest Completed:') or par.checkAgain[2] == 'CE-QC2' then
+			return HandleSpecial(newText, 'CE-QC2', nil, utf8.char(0x25C6)..' Quest Completed:', cutIdx, allSettings.colors.cexi[1])
+		elseif newText:find('Quest Completed') or par.checkAgain[2] == 'CE-QC' then
+			return HandleSpecial(newText, 'CE-QC', nil, utf8.char(0x25C6)..' Quest Completed', cutIdx, allSettings.colors.cexi[1])
 		end
 	end
 	
@@ -756,14 +792,11 @@ parseThis = function(e, e_message)
 	-- the LastMode descriptor is a placeholder ("_?"), so the user
 	-- knows to file a bug with the channel number.
 	if string_find(par.LastMode, '%_%?') then
-		col = 0xFFFFFFFF
-		if utils.FindInStringTable(msg, utils.combatwords, 0) then
-			par.LastMode = 'combat_y'
+		col = 0xFF000FFF
+		msg = msg..' (chn: '..tostring(par.MessageMode)..')'
+		if true then
+			ashita.misc.play_sound(string.format('%s\\notifications\\%s%s.wav', addon.path, 'notification_4', ''))
 		end
-		--msg = msg..' (chn: '..tostring(par.MessageMode)..')'
-		--if true then
-		--	ashita.misc.play_sound(string.format('%s\\notifications\\%s%s.wav', addon.path, 'notification_4', ''))
-		--end
 	end
 
 	if original_msg == ''
@@ -774,6 +807,27 @@ parseThis = function(e, e_message)
 	end
 
 	local newText = CleanTextFunctionNew(msg, par.LastMode)
+
+	-- Discord-bridge text rewrite: server-side discord relay messages
+	-- start with a lowercase letter on emoji-allowed channels.  Rewrite
+	-- bracketed names "<x>" to "{x}" and parse :emoji_name: tokens.
+	local isDiscordText = false
+	if set.isCEXI then
+		if utils_IsInTable(par.emojiChannels, par.MessageMode) then
+			for i = 1, #newText do
+				local first_letter = newText:sub(i, i)
+				if first_letter:match('%a') then
+					if first_letter >= 'a' and first_letter <= 'z' then
+						newText = utils_parseEmoji(newText:gsub('<', '{', 1):gsub('>', '}', 1))
+						isDiscordText = true
+						break
+					else
+						break
+					end
+				end
+			end
+		end
+	end
 
 	if newText:match('^%s*\n?$') then par.LastMode = 'empty' return end
 
@@ -953,24 +1007,46 @@ parseThis = function(e, e_message)
 	newText = ts..newText
 	local offset = #ts
 
-	-- De-duplicate: same text on the same TS, with exceptions for a
-	-- handful of MessageMode that may legitimately repeat.  ts_default
-	-- was computed once at the top of parseThis (#6).
+	-- De-duplicate against the most recent passing message, but only
+	-- if it arrived within the last 1 second.  Compare uses
+	-- utils.asciiKey so colour escapes, MC marker pairs, SJIS
+	-- multibyte runs and other non-printable decoration can't defeat
+	-- the byte-compare; the leading "[HH:MM:SS] " prefix is stripped
+	-- inside asciiKey.  Window: 1 entry, expires after 1 second.
+	-- Entry stores the already-keyed form so we pay the strip cost
+	-- once per incoming message.
 	local newText_len = #newText
-	local checkMsgOrDate = string_sub(newText, 1 + offset, newText_len) ~= par.LastMessage
-		or par.LastTS ~= ts_default
-		or par.MessageMode == 121
-		or par.MessageMode == 127
-		or par.MessageMode == 131
-		or par.MessageMode == 142
-		or par.MessageMode == 204
+	local newMsgKey   = utils.asciiKey(string_sub(newText, 1 + offset, newText_len))
+	local now_t       = os_time()
+	local recent      = par.RecentMessages
+
+	-- Prune entries older than the 1-second window (they're at the
+	-- front since pushes are appended in time order).
+	while recent[1] and now_t - recent[1].t > 1 do
+		table_remove(recent, 1)
+	end
+
+	-- Search the remaining window for an ASCII-equal predecessor.
+	local checkMsgOrDate = true
+	for ri = 1, #recent do
+		if recent[ri].key == newMsgKey then
+			checkMsgOrDate = false
+			break
+		end
+	end
 
 	if checkMsgOrDate then
 		b.msgID = b.msgID + 1
 		par.LastMsgLength = newText_len
 
 		par.LastTS      = ts_default
-		par.LastMessage = string_sub(newText, 1 + offset, newText_len)
+		par.LastMessage = newMsgKey
+
+		-- Record this message in the rolling window.  Cap at 1
+		-- entry by dropping the oldest when we'd grow past the
+		-- limit.
+		recent[#recent + 1] = { key = newMsgKey, t = now_t }
+		if #recent > 1 then table_remove(recent, 1) end
 
 		-- tab routing: which dedicated tab does this line belong to?
 		local isCombatMsg = false
@@ -1272,6 +1348,15 @@ parseThis = function(e, e_message)
 				buf1.text[#buf1.text] = utils_MCCheck(mctext)
 			end
 
+			-- Discord emoji painter — also gated by FC colour marking
+			-- because emojiCols emits MC escapes around every emoji.
+			if fcMarkingActive and set.isCEXI and isDiscordText then
+				local mctext = buf1.text[#buf1.text]
+				mctext = utils_emojiCols(mctext)
+				if #mctext < 4096 then
+					buf1.text[#buf1.text] = utils_MCCheck(mctext)
+				end
+			end
 
 			-- Legacy in-band palette escape translation.  Runs when
 			-- respectLegacyColors is TRUE — either FC marking is
@@ -1323,7 +1408,14 @@ parseThis = function(e, e_message)
 				if L_i < n_lines then
 					newText = string_sub(newText, cutIdx + 1, string_len(newText))
 				end
-				if par.isCustom then par.LastMode = par.LastMode..'C' end
+				-- Custom-tab sentinel.  '@' is intentional: the previous
+				-- marker 'C' collided with NPC-suffixed mode names
+				-- ('NPC', 'system7NPC', 'party_NPC'), so the 'C$' tail
+				-- check below was matching NPC traffic and bumping
+				-- ChatBufferN_Custom without a corresponding write to
+				-- ChatBuffer[8] -- which made the render-loop catch-up
+				-- replay recent Custom lines as duplicates.
+				if par.isCustom then par.LastMode = par.LastMode..'@' end
 				table_insert(buf1.mode, tostring(par.MessageMode)..'|'..par.LastMode)
 				-- Force the combat-line base colour to white when FC
 				-- colour marking is globally OFF AND compact combat
@@ -1401,7 +1493,7 @@ parseThis = function(e, e_message)
 					for tr = 1, b.CleanupThresh do
 						local tabremove = 0
 						local cremove   = 0
-						if string_find(buf1.mode[tr], 'C$')         ~= nil then cremove = 8 end
+						if string_find(buf1.mode[tr], '@$')         ~= nil then cremove = 8 end
 						if string_find(buf1.mode[tr], '^combat')    ~= nil then tabremove = 3
 						elseif string_find(buf1.mode[tr], '^linkshell') ~= nil then tabremove = 4
 						elseif string_find(buf1.mode[tr], '^party')     ~= nil then tabremove = 5
@@ -1456,7 +1548,7 @@ parseThis = function(e, e_message)
 			b.ChatBufferN_Shout = b.ChatBufferN_Shout + n_lines
 			if allSettings.SelectedTab == 'Shout' or allSettings.SelectedTab2 == 'Shout' then ResetAutoHideTimer() end
 		end
-		if string_find(par.LastMode, 'C$') then
+		if string_find(par.LastMode, '@$') then
 			b.ChatBufferN_Custom = b.ChatBufferN_Custom + n_lines
 			if allSettings.SelectedTab == 'Custom' or allSettings.SelectedTab2 == 'Custom' then ResetAutoHideTimer() end
 		end

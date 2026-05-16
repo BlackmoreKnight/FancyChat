@@ -56,6 +56,7 @@ end
 function M.default_fcw()
 	return T{
 		T{
+			-- cexi
 			LastCommands = T{
 				{}, 0,
 				{'/fish','/sit','/heal','/invite','/decline','/join','/follow','/map','/logout','/shutdown'},
@@ -318,6 +319,28 @@ function M.default_settings()
 		shortcutTabEnabled   = T{false},
 		shortcutTab2Enabled  = T{false},
 		shortcutBigEnabled   = T{false},
+		-- Gamepad digital-button bindings.  Values are XInput button
+		-- indexes as delivered by Ashita's xinput_button event.  Stick
+		-- axes (18/19/20/21) are intentionally NOT user-remappable.
+		GamepadBindings = {
+			modifier          = 8,    -- LB: hold to enable navigation mode
+			cyclePrimaryTab   = 9,    -- RB
+			cycleSecondaryTab = 17,   -- RT
+			snapToBottom      = 13,   -- B
+			toggleBigMode     = 15,   -- Y
+			openChatInput     = 14,   -- X
+			submitInput       = 12,   -- A
+			historyPrev       = 0,    -- D-pad Up
+			historyNext       = 1,    -- D-pad Down
+			presetPrev        = 2,    -- D-pad Left
+			presetNext        = 3,    -- D-pad Right
+		},
+		-- When true, the Gamepad tab labels each binding with its
+		-- friendly Xbox name (LB, RT, A, ...).  When false (default),
+		-- raw XInput button indexes are shown - safer for non-Xbox
+		-- controllers whose physical buttons map to different XInput
+		-- numbers than an Xbox pad would.
+		XboxController       = T{false},
 		blockAll             = T{false},
 		blockCombat          = T{false},
 		timeStamp            = T{true},
@@ -415,6 +438,7 @@ function M.default_colors()
 		dmggot       = {0xFFFA4343, 0xFFFFA269},
 		spelldmgdone = {0xFFADFF33, 0xFF5EE0DE},
 		spelldmggot  = {0xFFFC2B43, 0xFFE6874C},
+		cexi         = {0xFF00FFB3, 0xFFFF0055},
 	}
 end
 
@@ -443,6 +467,7 @@ M.color_descriptions = {
 	dmggot       = {'Damage Taken',  	   'Highlights damage taken by you or your missed attacks.'},
 	spelldmgdone = {'Spell Dmg Done',      'Highlights spell damage done'},
 	spelldmggot  = {'Spell Dmg Taken',     'Highlights spell damage taken'},
+	cexi         = {'CEXI',                'CEXI content messages'},
 	ability      = {'Ability/Spell',       'Highlights an ability or spell used by an Entity'},
 	you          = {'You',                 'Color highlighting youin combat text.'},
 	actor1       = {'Friend Entity',       'Color highlighting the friendly entity in combat text.\n(i.e. the player, party members, etc.'},
@@ -488,6 +513,13 @@ function M.default_gamepad()
 		analogCD        = 0,
 		analogCDready   = false,
 		pressedEnter    = false,
+		-- When non-nil, the next xinput_button press (state == 1) for
+		-- a non-axis, listed button is written into
+		-- allSettings.GamepadBindings[listenKey] and listening exits.
+		-- Set by the Settings -> Gamepad tab "listen" buttons; cleared
+		-- on Escape (key_state callback) or by clicking the same row's
+		-- listen button again.
+		listenKey       = nil,
 	}
 end
 
