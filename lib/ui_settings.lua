@@ -618,12 +618,14 @@ function M.draw_settings_panel()
 				return tostring(id)
 			end
 
-			-- Draw the info-icon at a fixed column (relative to the
-			-- child window's left edge) instead of right after the
-			-- label, so the icon stacks vertically across rows whose
-			-- labels have different widths.  Column chosen wide enough
-			-- to clear the longest action label currently in use.
-			local GP_TOOLTIP_X = 290
+			-- Place the info icon at a column past the widest row label,
+			-- measured at runtime via CalcTextSize so the position is
+			-- correct regardless of the active font (gdifonts, scale,
+			-- etc.).  Falls back to a generous fixed minimum if the
+			-- measurement returns 0 for any reason.
+			local longest_gp_label = 'Modifier (hold to enable navigation)'
+			local label_w          = imgui.CalcTextSize(longest_gp_label)
+			local GP_TOOLTIP_X     = math.max((label_w or 0) + 20, 320)
 
 			local function gp_inline_tooltip(message)
 				imgui.SameLine(GP_TOOLTIP_X)
@@ -681,17 +683,22 @@ function M.draw_settings_panel()
 				allSettings.GamepadNav[1] = not allSettings.GamepadNav[1]
 				SaveSettings()
 			end
-			AddTooltip('Master switch for gamepad input. When off, none of the bindings below fire in-game and the modifier button is ignored.', 0)
+			AddTooltip('Master switch for gamepad input. When off, none of the bindings below fire in-game and the modifier button is ignored.', 4)
 			imgui.Dummy({0, 5})
 			if imgui.Checkbox('Xbox Controller##XboxLabels', {allSettings.XboxController[1]}) then
 				allSettings.XboxController[1] = not allSettings.XboxController[1]
 				SaveSettings()
 			end
-			AddTooltip('When on, buttons are labelled with their Xbox names (A, B, LB, RT, ...). When off, buttons are labelled with their raw XInput index - safer for non-Xbox controllers whose physical layout maps to different XInput numbers.', 0)
+			AddTooltip('When on, buttons are labelled with their Xbox names (A, B, LB, RT, ...). When off, buttons are labelled with their raw XInput index - safer for non-Xbox controllers whose physical layout maps to different XInput numbers.', 4)
 			imgui.Dummy({0, 15})
 
 			imgui.Text('Gamepad button bindings')
 			AddTooltip('Click a binding to listen for the next gamepad button press. If the chosen button is already used by another action, the two actions swap. Stick scroll axes are not remappable.', 0)
+			imgui.Dummy({0, 4})
+			imgui.TextColored({0.70, 0.70, 0.70, 1.0},
+				'Click a button on the right side of a row, then press the')
+			imgui.TextColored({0.70, 0.70, 0.70, 1.0},
+				'controller button you want to assign.  Esc cancels.')
 			imgui.Dummy({0, 10})
 
 			draw_gp_row('Modifier (hold to enable navigation)', 'modifier',
