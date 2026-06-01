@@ -662,14 +662,34 @@ GdiFontReturn_t GdiFontManager::CreateFontTextureColor(GdiFontData_t data)
 	Gdiplus::Status status;
 	if (!fontLoaded) {
         
-        wchar_t exePath[MAX_PATH];
-        GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-
-        wchar_t* lastSlash = wcsrchr(exePath, L'\\');
-        if (lastSlash)
-            *lastSlash = 0;
-
-        std::wstring fontPath = std::wstring(exePath) + L"\\../addons/fancychat/gdifonts/gameicons.ttf";
+        // Resolve gameicons.ttf relative to THIS DLL, which lives in the
+        // addon's gdifonts folder right next to the font.  Deriving from
+        // the game executable (GetModuleFileNameW(nullptr, ...)) breaks
+        // whenever FFXI is installed in a different tree than Ashita — e.g.
+        // a normal retail PlayOnline install — because "../addons/..."
+        // then resolves under the game's folder instead of Ashita's, the
+        // file isn't found, AddFontFile fails, and every PUA icon renders
+        // as a missing-glyph box.
+        std::wstring fontPath;
+        wchar_t dllPath[MAX_PATH] = { 0 };
+        HMODULE hSelf = nullptr;
+        if (GetModuleHandleExW(
+                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                reinterpret_cast<LPCWSTR>(&GetEncoderClsid), &hSelf)
+            && GetModuleFileNameW(hSelf, dllPath, MAX_PATH))
+        {
+            fontPath = (std::filesystem::path(dllPath).parent_path() / L"gameicons.ttf").wstring();
+        }
+        else
+        {
+            // Fallback: original game-exe-relative derivation.
+            wchar_t exePath[MAX_PATH];
+            GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+            wchar_t* lastSlash = wcsrchr(exePath, L'\\');
+            if (lastSlash)
+                *lastSlash = 0;
+            fontPath = std::wstring(exePath) + L"\\../addons/fancychat/gdifonts/gameicons.ttf";
+        }
         status = g_fontCollection.AddFontFile(fontPath.c_str());
 		
 		if (status == Gdiplus::Ok) {
@@ -872,7 +892,6 @@ GdiFontReturn_t GdiFontManager::CreateFontTextureColor(GdiFontData_t data)
         bmpText.reserve(drawText.size());
 
         float xAdvance = 0.0f;
-        float arrow_offset = 0.0f;
         float space_offset = 0.0f;
         bool arrow_nextspace = false;
 
@@ -880,11 +899,6 @@ GdiFontReturn_t GdiFontManager::CreateFontTextureColor(GdiFontData_t data)
         {
             uint32_t cp = codepoints[ci];
 
-            if ((cp == 0x1F81E || cp == 0x1F81C))
-            {
-                arrow_offset = data.FontHeight * 0.1f;
-            }
-            
             if ((cp > 0xE000 && cp < 0xEF02) && hasCustomFont)
             {
 
@@ -964,7 +978,7 @@ GdiFontReturn_t GdiFontManager::CreateFontTextureColor(GdiFontData_t data)
 					emojioffset = data.FontHeight * 0.15;
                 }
 				
-                Gdiplus::PointF emojiPos(origin.X + xAdvance + arrow_offset - emojioffset, origin.Y);
+                Gdiplus::PointF emojiPos(origin.X + xAdvance - emojioffset, origin.Y);
 
 				float_t newFontHeight = data.FontHeight -3;
                 const Gdiplus::FontFamily* chosenFont = g_emojiFont;
@@ -1120,7 +1134,7 @@ GdiFontReturn_t GdiFontManager::CreateFontTextureColor(GdiFontData_t data)
             }
 
             float adjustedRight = rightEdge + (trailingSpacesWidth)
-                + space_offset +(arrow_offset > 0 && nextFirst == 0x20 ? -(arrow_offset*1.5) : 0.0f);
+                + space_offset;
             maxRight = (std::max)(maxRight, adjustedRight);
             height = (std::max)(height, static_cast<int>(std::ceil(runBounds.GetBottom())));
             xOffset = adjustedRight;

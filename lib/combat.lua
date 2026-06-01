@@ -50,9 +50,16 @@ local combatCP = {
 	CRIT  = utf8.char(0x1F4A5),
 	ATK   = utf8.char(0x1F5E1),
 	SC    = icons.SC,
-	LEFT  = utf8.char(0x1F81C),
-	RIGHT = utf8.char(0x1F81E),
-	SPLIT = utf8.char(0x1F81E),
+	-- LEFT/RIGHT/SPLIT are the line dividers.  They are driven by the
+	-- user's `CombatSplitChar` setting via RefreshSplitChar() below, so
+	-- these literals are only the pre-load fallback (overwritten the
+	-- moment the setting is read).  They used to be U+1F81C / U+1F81E
+	-- (Supplemental Arrows-C), a block shipped by no standard Windows
+	-- font, so they rendered as the missing-glyph box; the fallback is
+	-- now a Geometric Shapes triangle that every chat font has.
+	LEFT  = utf8.char(0x25B6),
+	RIGHT = utf8.char(0x25B6),
+	SPLIT = utf8.char(0x25B6),
 	PARR  = icons.PARR,
 	CNTR  = utf8.char(0x2B8C),
 	KILL  = utf8.char(0x2717),
@@ -69,6 +76,39 @@ local LEN_SPLIT = string_len(combatCP.SPLIT)
 local LEN_RIGHT = string_len(combatCP.RIGHT)
 local LEN_LEFT  = string_len(combatCP.LEFT)
 local LEN_CAST  = string_len(combatCP.CAST)
+
+-- ===================================================================
+-- RefreshSplitChar: apply the user-selected combat divider
+-- (allSettings.CombatSplitChar = {label, codepoint}) to the three
+-- divider glyphs and recompute their byte-lengths.  The option list
+-- lives in lib/state.lua (CombatSplitCharList) and is surfaced as a
+-- dropdown in the settings UI; the dropdown's SaveSettings() handler
+-- calls this so the change takes effect live.  Also called once from
+-- lifecycle's load_cb after settings are loaded/repaired.
+--
+-- U+1F81E / U+1F81C (the old hardcoded "big arrow", and its former
+-- list entry) are rejected here: that Supplemental Arrows-C block has
+-- no glyph in any standard Windows font and renders as the missing-
+-- glyph box, so a persisted selection of it falls back to a triangle.
+-- ===================================================================
+function M.RefreshSplitChar()
+	local sel = allSettings.CombatSplitChar
+	local cp  = (type(sel) == 'table' and sel[2]) or 0x25B6
+	if cp == 0x1F81E or cp == 0x1F81C then cp = 0x25B6 end
+	local ch = utf8.char(cp)
+	combatCP.LEFT  = ch
+	combatCP.RIGHT = ch
+	combatCP.SPLIT = ch
+	LEN_SPLIT = string_len(combatCP.SPLIT)
+	LEN_RIGHT = string_len(combatCP.RIGHT)
+	LEN_LEFT  = string_len(combatCP.LEFT)
+end
+_G.RefreshSplitChar = M.RefreshSplitChar
+
+-- Apply whatever is in allSettings at module-load time (default or, if
+-- settings already loaded, the user value).  load_cb re-runs this after
+-- the settings file is merged in.
+M.RefreshSplitChar()
 
 -- ===================================================================
 -- Party / foe classification helpers (#9).  These are the duplicated

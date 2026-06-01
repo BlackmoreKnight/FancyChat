@@ -19,3 +19,7 @@ extracted_palette.txt
 # Map downloader artefacts (generated each run; not source)
 maps/_summary.txt
 maps/__pycache__/
+
+# Local-only Consolas fonts and user filter data (not part of repo source)
+gdifonts/consola*.ttf
+filters/

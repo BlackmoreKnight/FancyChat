@@ -27,6 +27,14 @@ ffi.cdef[[
     void* GlobalLock(HGLOBAL hMem);
     int GlobalUnlock(HGLOBAL hMem);
 
+    // Foreground-window detection for the alt-tab auto-hide guard
+    // (lib/render.lua auto-hide state machine).  When the game window
+    // isn't currently in focus we want to freeze the idle timer so the
+    // chat doesn't fade out behind the user's back.
+    HWND GetForegroundWindow();
+    unsigned int GetWindowThreadProcessId(HWND hWnd, unsigned int* lpdwProcessId);
+    unsigned int GetCurrentProcessId();
+
     size_t strlen(const char* str);
     void memcpy(void* dest, const void* src, size_t n);
 
@@ -589,6 +597,23 @@ utils.SetClipboardText = function(text)
 	user32.CloseClipboard()
 end
 
+-- ----------------------------------------------------------------
+-- IsGameFocused: returns true when the foreground window belongs to
+-- the same process this Lua state is running in (i.e. FFXI / Ashita).
+-- Used by the auto-hide state machine in lib/render.lua to suppress
+-- the idle-fade while the user is alt-tabbed into another window.
+-- Cheap Win32 calls, safe to invoke every frame.
+-- ----------------------------------------------------------------
+local _pid_out = ffi.new('unsigned int[1]')
+local _own_pid = kernel32.GetCurrentProcessId()
+utils.IsGameFocused = function()
+	local hwnd = user32.GetForegroundWindow()
+	if hwnd == nil then return true end          -- be safe: assume focused
+	_pid_out[0] = 0
+	user32.GetWindowThreadProcessId(hwnd, _pid_out)
+	return _pid_out[0] == _own_pid
+end
+
 -- ================================================================
 -- Texture helpers
 -- ================================================================
@@ -628,14 +653,30 @@ end
 local FFXIC_BASE  = 'https://ffxiclopedia.fandom.com'
 local BGWIKI_BASE = 'https://www.bg-wiki.com'
 
+-- Canonicalise a zone name into the slug both wikis use in their
+-- article URLs:
+--   * spaces become underscores
+--   * [S] / [V] / [P1] bracketed suffixes become (S) / (V) / (P1)
+--     (both BG-Wiki AND FFXIClopedia URLs use parens, even though
+--     FFXIClopedia displays brackets in page titles)
+--   * '#' must be percent-escaped or browsers parse it as a URL
+--     fragment marker (e.g. "Mine Shaft #2716")
+local function wikiSlug(zoneName)
+	return (zoneName
+		:gsub(' ', '_')
+		:gsub('%[([^%]]+)%]', '(%1)')
+		:gsub('#', '%%23'))
+end
+
 utils.GetZoneWikiUrl = function(zoneName)
 	if not zoneName then return nil end
-	return FFXIC_BASE..'/wiki/'..zoneName:gsub(' ', '_')
+	return FFXIC_BASE..'/wiki/'..wikiSlug(zoneName)
 end
 
 utils.GetBgWikiZoneUrl = function(zoneName)
 	if not zoneName then return nil end
-	return BGWIKI_BASE..'/wiki/'..zoneName:gsub(' ', '_')
+	-- BG-Wiki article paths live under /ffxi/, not /wiki/.
+	return BGWIKI_BASE..'/ffxi/'..wikiSlug(zoneName)
 end
 
 -- Underscores/hyphens -> spaces; split CamelCase + letter|digit boundaries.
@@ -2420,15 +2461,25 @@ end
 -- ================================================================
 -- Custom-filter file loader
 -- ================================================================
+--
+-- Filter files live in two sibling subfolders under filters/:
+--   filters/combat/*.txt -- applied to combat-log messages
+--   filters/other/*.txt  -- applied to non-combat messages
+-- The three helpers below all take a `kind` argument ('combat' or
+-- 'other') so the same logic drives both filter tabs.
 
--- Enumerate every .txt file in the combatfilters/ subfolder so the
--- Settings UI can offer a picker.  Sorted alphabetically.  Uses
--- `dir /b` which is a Windows built-in — fine here because the addon
--- only ever runs under Ashita / Windows.  Returns an empty table if
--- the folder doesn't exist or has no .txt files.
-utils.ListCombatFilters = function()
+local function filterDir(kind)
+	return addon.path..'\\filters\\'..kind
+end
+
+-- Enumerate every .txt file in filters/<kind>/ so the Settings UI
+-- can offer a picker.  Sorted alphabetically.  Uses `dir /b` which is
+-- a Windows built-in — fine here because the addon only ever runs
+-- under Ashita / Windows.  Returns an empty table if the folder
+-- doesn't exist or has no .txt files.
+utils.ListFilters = function(kind)
 	local filters = T{}
-	local p = io.popen('dir /b /a-d "'..addon.path..'\\combatfilters\\*.txt" 2>nul')
+	local p = io.popen('dir /b /a-d "'..filterDir(kind)..'\\*.txt" 2>nul')
 	if p then
 		for filename in p:lines() do
 			table.insert(filters, filename)
@@ -2439,46 +2490,56 @@ utils.ListCombatFilters = function()
 	return filters
 end
 
--- Cheap existence check for the active filter file.  Used by the CL
+-- Cheap existence check for the active filter file.  Used by the
 -- Filters tab + lifecycle init to detect "active filter was deleted
 -- behind our back" and react gracefully (red warning + auto-disable
 -- the master toggle so filtering doesn't silently no-op).
-utils.CombatFilterExists = function(filename)
+utils.FilterFileExists = function(kind, filename)
 	if filename == nil or filename == '' then return false end
-	local f = io.open(addon.path..'/combatfilters/'..filename, 'rb')
+	local f = io.open(filterDir(kind):gsub('\\', '/')..'/'..filename, 'rb')
 	if f == nil then return false end
 	f:close()
 	return true
 end
 
--- Load and parse a single filter file from combatfilters/.  `filename`
--- defaults to the legacy 'custom_combat_filters.txt' so older settings
--- without a SelectedCombatFilter slot still work.  Missing files are
--- non-fatal — return an empty list so the addon keeps running with
--- no custom filters applied (e.g. user deleted/renamed the file via
--- the Settings UI).
-utils.LoadCustomFilters = function(filename)
-	local custmFilters = T{}
+-- Load and parse a single filter file from filters/<kind>/.  Missing
+-- files are non-fatal — return an empty list so the addon keeps
+-- running with no filters applied (e.g. user deleted/renamed the
+-- file via the Settings UI).
+--
+-- File-format note: scope suffixes ('_y' / '_p') only apply to the
+-- 'combat' kind, where the parser has the isYou / isParty / isAlliance
+-- determination needed to honour them.  For the 'other' kind every
+-- line is taken verbatim as the filter pattern and stored with the
+-- default '_z' (all) scope.  A literal underscore inside a non-combat
+-- filter (e.g. "you_didn't_catch") therefore stays part of the word
+-- and isn't mis-parsed as a scope marker.
+utils.LoadFilters = function(kind, filename)
+	local result = T{}
 	filename = filename or 'example.txt'
 
-	local f = io.open(addon.path..'/combatfilters/'..filename, 'rb')
+	local f = io.open(filterDir(kind):gsub('\\', '/')..'/'..filename, 'rb')
 	if f == nil then
-		return custmFilters
+		return result
 	end
 	for line in f:lines() do
 		if line:sub(1, 2) ~= '##' and not line:match('^%s*\n?$') then
-			local p2 = line:find('%_')
-			if p2 then
-				local l1 = line:sub(1, p2 - 1)
-				local l2 = line:sub(p2, #line)
-				table.insert(custmFilters, {l1:trimex(), l2:trimex()})
+			if kind == 'combat' then
+				local p2 = line:find('%_')
+				if p2 then
+					local l1 = line:sub(1, p2 - 1)
+					local l2 = line:sub(p2, #line)
+					table.insert(result, {l1:trimex(), l2:trimex()})
+				else
+					table.insert(result, {line:trimex(), '_z'})
+				end
 			else
-				table.insert(custmFilters, {line:trimex(), '_z'})
+				table.insert(result, {line:trimex(), '_z'})
 			end
 		end
 	end
 	f:close()
-	return custmFilters
+	return result
 end
 
 -- ================================================================
@@ -2496,6 +2557,21 @@ utils.RevertShiftJIS = function(text)
 		text = text:gsub(chars, utils.ShiftJISback[i][3])
 	end
 	return text
+end
+
+-- ================================================================
+-- 24h -> 12h timestamp conversion (no AM/PM).  Subtracts 12 from
+-- the leading two-digit hour when it is greater than 12, preserving
+-- the two-digit zero-padded shape (e.g. "[14:30]" -> "[02:30]").
+-- Hours <= 12 (including 00) are left untouched.
+-- ================================================================
+utils.fmt_ts_12h = function(ts)
+	return (ts:gsub('^(%[?)(%d%d)', function(open, hh)
+		local h = tonumber(hh)
+		if h and h > 12 then
+			return open..string.format('%02d', h - 12)
+		end
+	end))
 end
 
 
