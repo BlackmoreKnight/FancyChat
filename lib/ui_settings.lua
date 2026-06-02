@@ -355,6 +355,12 @@ function M.draw_settings_panel()
 			end
 			AddTooltip('When off (default), FancyChat hides itself the moment you click on the legacy FFXI chat or open the chat input. When on, both windows stay visible side by side.', 4)
 			imgui.Dummy({0, 5})
+			if imgui.Checkbox('Anchor chat input box to the first window (experimental)##ChatInputPanel', {allSettings.ChatInputPanel[1]}) then
+				allSettings.ChatInputPanel[1] = not allSettings.ChatInputPanel[1]
+				SaveSettings()
+			end
+			AddTooltip('Draws a mirror of your chat input anchored under the first FancyChat window. Experimental: currently shown in addition to the native FFXI input bar (hiding the native bar comes next).', 4)
+			imgui.Dummy({0, 5})
 			if imgui.Checkbox('Show help (i) hover button on the first chat window##HelpButton', {allSettings.HelpButton[1]}) then
 				allSettings.HelpButton[1] = not allSettings.HelpButton[1]
 				SaveSettings()

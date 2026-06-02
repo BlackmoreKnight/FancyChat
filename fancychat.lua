@@ -54,9 +54,13 @@ require('lib.bigmode')
 -- /fchat debug/savedebug/printdebug/helpdebug command bodies.
 --require('lib.debug_window')
 local render    = require('lib.render')
+local chatinput = require('lib.chatinput')
 
 lifecycle.register()
 input.register()
 parser.register()
 render.register()
+-- After render.register(): chatinput's d3d_present handler reads the
+-- window-1 plate geometry that render updates earlier in the frame.
+chatinput.register()
 require('lib.commands').register()

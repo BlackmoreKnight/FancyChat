@@ -315,6 +315,10 @@ function M.default_settings()
 		-- "Restart & apply".
 		InstantChatScroll    = T{false},
 		CombatSplitChar      = {'Greater >', 0x003E},  -- alternatives: 0x7E ~, 0x2022 •, 0x2043 ⁃
+		-- Opt-in: draw a mirrored chat-input box anchored to the bottom
+		-- of the primary FancyChat window.  Phase 1 only mirrors the
+		-- native input visually (the native bar is not yet hidden).
+		ChatInputPanel       = T{false},
 		GuideMeSecondWindow  = T{false},
 		GuideMeFontScale     = 1,
 		EnableFastScroll     = T{true},
@@ -475,6 +479,7 @@ function M.default_colors()
 		shout        = {0xFFFF5E5E},
 		linkshell1   = {0xFF50FFD0},
 		linkshell2   = {0xFF00FF80},
+		assist       = {0xFF4D9FFF},
 		emote        = {0xFFC797FF},
 		combat       = {0xFFDCF1FC},
 		damage       = {0xFFFFFFFF},
@@ -517,6 +522,7 @@ M.color_descriptions = {
 	shout        = {'Shout',               '/shout messages'},
 	linkshell1   = {'Linkshell 1',         '/linkshell messages'},
 	linkshell2   = {'Linkshell 2',         '/linkshell2 messages'},
+	assist       = {'Assist',              '/assist English (/ae) and Japanese (/aj) messages'},
 	emote        = {'Emotes',              '/emote messages'},
 	combat       = {'Combat',              'Combat base color'},
 	damage       = {'Combat Damage',       'Default DMG color'},
