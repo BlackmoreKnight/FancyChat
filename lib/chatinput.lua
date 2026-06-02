@@ -149,7 +149,7 @@ local function update()
 
 	local plate = ro.RectBG[1].settings
 	local fh    = allSettings.fontSettings.font_height
-	local boxX  = plate.position_x
+	local boxX  = plate.position_x + (allSettings.ChatInputPanelOffsetX or 0)
 	local boxW  = plate.width
 	local boxH  = fh + 6
 
@@ -165,7 +165,7 @@ local function update()
 		local tabsBottom = tp[2] + plate.height / (allSettings.ChatLines * 0.7)
 		if tabsBottom > boxY then boxY = tabsBottom end
 	end
-	boxY = boxY + 2
+	boxY = boxY + 2 + (allSettings.ChatInputPanelOffsetY or 0)
 
 	-- Live input text → UTF-8 for the gdi renderer, rendered exactly like
 	-- chat: expand auto-translate tokens (same as parser.lua), then run
@@ -175,9 +175,19 @@ local function update()
 	local raw    = AshitaCore:GetChatManager():GetInputTextRaw() or ''
 	local parsed = AshitaCore:GetChatManager():ParseAutoTranslate(raw, true)
 	local text   = utils.TranscodeFFXI(parsed or raw, false, false)
-	local caret  = ((os.clock() % 1) < 0.5) and '|' or ' '
 
-	panelBG:set_fill_color(plate.fill_color)
+	-- Caret: blink only when enabled; the off-phase is a space (not empty)
+	-- so the mirrored text doesn't jitter by a glyph width.
+	local blink  = allSettings.ChatInputPanelCaret and allSettings.ChatInputPanelCaret[1]
+	local caret  = blink and (((os.clock() % 1) < 0.5) and '|' or ' ') or ''
+
+	-- Background = chat-plate fill scaled by the opacity setting (%).
+	local op    = (allSettings.ChatInputPanelOpacity or 100) / 100
+	local fill  = plate.fill_color
+	local alpha = math.floor((math.floor(fill / 0x1000000) % 256) * op)
+	fill = (alpha * 0x1000000) + (fill % 0x1000000)
+
+	panelBG:set_fill_color(fill)
 	panelBG:set_width(boxW)
 	panelBG:set_height(boxH)
 	panelBG:set_position_x(boxX)

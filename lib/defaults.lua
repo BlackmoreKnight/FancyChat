@@ -316,9 +316,13 @@ function M.default_settings()
 		InstantChatScroll    = T{false},
 		CombatSplitChar      = {'Greater >', 0x003E},  -- alternatives: 0x7E ~, 0x2022 •, 0x2043 ⁃
 		-- Opt-in: draw a mirrored chat-input box anchored to the bottom
-		-- of the primary FancyChat window.  Phase 1 only mirrors the
-		-- native input visually (the native bar is not yet hidden).
-		ChatInputPanel       = T{false},
+		-- of the primary FancyChat window.  Mirrors the native input
+		-- visually (the native bar is not yet hidden).
+		ChatInputPanel        = T{false},
+		ChatInputPanelCaret   = T{true},  -- show the blinking caret
+		ChatInputPanelOpacity = 100,      -- background opacity %, scales the chat-plate fill alpha
+		ChatInputPanelOffsetX = 0,        -- horizontal nudge (px)
+		ChatInputPanelOffsetY = 0,        -- vertical nudge (px)
 		GuideMeSecondWindow  = T{false},
 		GuideMeFontScale     = 1,
 		EnableFastScroll     = T{true},
