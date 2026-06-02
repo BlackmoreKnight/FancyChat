@@ -1,7 +1,9 @@
 #ifndef __GdiFontTxDefines__
 #define __GdiFontTxDefines__
 
-#include <atlbase.h>
+#include <windows.h>
+#include <cstdio>
+#include <cwchar>
 #include "includes/d3d8/includes/d3d8.h"
 #include "includes/d3d8/includes/d3dx8core.h"
 #pragma comment(lib, "includes/d3d8/lib/d3dx8.lib")
