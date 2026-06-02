@@ -25,12 +25,6 @@ Visual appearance and behaviour of the chat plate.
 - **Use half window length for docked UI elements** — companion panels (GuideMe, Notepad) use half the chat width when docked.
 - **Prevent obstructing FFXI UI** — auto-slide when an FFXI menu opens.
 - **Prevent obstructing Auto-Translate menu as well** — same thing for that specific UI.
-- **Anchor chat input box to the first window (experimental)** — draws a mirror of your chat input in a box anchored beneath the primary window's tab selector, with a channel indicator to its left (Party, Linkshell, Tell, Assist E./J., …) tinted to that channel's color and hidden for `/say`. Auto-translate phrases render with their proper ❮ ❯ brackets, matching the chat log, and window 1 stays visible while you type (no need to enable "Keep FancyChat visible while legacy chat is open"). When enabled, four sub-options appear:
-    - **Blinking caret** — show/hide the blinking `|` at the end of the mirrored text.
-    - **Background opacity** — 0–100 %, scales the chat-plate background alpha for the panel.
-    - **Nudge X / Y** — pixel offsets to fine-tune where the box sits under the tabs.
-
-  > **Note:** This currently displays *in addition to* the native FFXI input bar (your typing still goes through the game's input as normal); hiding the native bar is a planned future step.
 
 ## Font Colors
 

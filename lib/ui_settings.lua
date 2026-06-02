@@ -355,47 +355,6 @@ function M.draw_settings_panel()
 			end
 			AddTooltip('When off (default), FancyChat hides itself the moment you click on the legacy FFXI chat or open the chat input. When on, both windows stay visible side by side.', 4)
 			imgui.Dummy({0, 5})
-			if imgui.Checkbox('Anchor chat input box to the first window (experimental)##ChatInputPanel', {allSettings.ChatInputPanel[1]}) then
-				allSettings.ChatInputPanel[1] = not allSettings.ChatInputPanel[1]
-				SaveSettings()
-			end
-			AddTooltip('Draws a mirror of your chat input anchored under the first FancyChat window. Experimental: currently shown in addition to the native FFXI input bar (hiding the native bar comes next).', 4)
-			if allSettings.ChatInputPanel[1] then
-				imgui.Dummy({0, 2})
-				imgui.Dummy({18, 0}) imgui.SameLine()
-				if imgui.Checkbox('Blinking caret##ChatInputCaret', {allSettings.ChatInputPanelCaret[1]}) then
-					allSettings.ChatInputPanelCaret[1] = not allSettings.ChatInputPanelCaret[1]
-					SaveSettings()
-				end
-				imgui.Dummy({18, 0}) imgui.SameLine()
-				imgui.Text('Background opacity') imgui.SameLine()
-				imgui.PushItemWidth(dsize.x / 9)
-				local cipOp = {allSettings.ChatInputPanelOpacity}
-				if imgui.SliderInt('##ChatInputOpacity', cipOp, 0, 100, '%d%%', ImGuiSliderFlags_AlwaysClamp) then
-					allSettings.ChatInputPanelOpacity = cipOp[1]
-					SaveSettings()
-				end
-				imgui.PopItemWidth()
-				imgui.Dummy({18, 0}) imgui.SameLine()
-				imgui.Text('Nudge  X') imgui.SameLine()
-				imgui.PushItemWidth(dsize.x / 12)
-				local cipX = {allSettings.ChatInputPanelOffsetX}
-				if imgui.SliderInt('##ChatInputOffX', cipX, -100, 100, '%d', ImGuiSliderFlags_AlwaysClamp) then
-					allSettings.ChatInputPanelOffsetX = cipX[1]
-					SaveSettings()
-				end
-				imgui.PopItemWidth()
-				imgui.SameLine() imgui.Text('Y') imgui.SameLine()
-				imgui.PushItemWidth(dsize.x / 12)
-				local cipY = {allSettings.ChatInputPanelOffsetY}
-				if imgui.SliderInt('##ChatInputOffY', cipY, -100, 100, '%d', ImGuiSliderFlags_AlwaysClamp) then
-					allSettings.ChatInputPanelOffsetY = cipY[1]
-					SaveSettings()
-				end
-				imgui.PopItemWidth()
-				AddTooltip('Fine-tune the input panel: caret blink, background opacity, and an X/Y position nudge if the box does not sit where you want under the tabs.', 4)
-			end
-			imgui.Dummy({0, 5})
 			if imgui.Checkbox('Show help (i) hover button on the first chat window##HelpButton', {allSettings.HelpButton[1]}) then
 				allSettings.HelpButton[1] = not allSettings.HelpButton[1]
 				SaveSettings()

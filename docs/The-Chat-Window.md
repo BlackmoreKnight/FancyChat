@@ -53,20 +53,6 @@ Hovering the in-game name of an item, ability, or spell in chat (an "auto-transl
 - Up to **four** preview tooltips can stack horizontally above the chat window when a single line contains multiple recognised names.
 - Disable previews from Settings → Extra → "Preview Items/Abilities/Spells on mouse hover".
 
-## Anchored input panel
-
-*Experimental — opt in via Settings → Chat Window → "Anchor chat input box to the first window".*
-
-When enabled, FancyChat draws a mirror of your chat input in a box anchored just beneath the primary window's tab selector, so what you're typing appears as part of the FancyChat window instead of only in FFXI's default input bar at the screen edge.
-
-- A **channel indicator** sits to the left of the box — `Party`, `Linkshell`, `Linkshell2`, `Tell`, `Shout`, `Yell`, `Unity`, `Assist E.` / `Assist J.` — tinted to that channel's chat color and **hidden for `/say`**. It reads the command you type (e.g. `/p`, `/l2`, `/ae`).
-- **Auto-translate** phrases display with their ❮ ❯ brackets, exactly like the chat log.
-- Window 1 **stays visible while you type**, so you no longer need "Keep FancyChat visible while legacy chat is open" just to use the panel.
-
-Sub-options (shown when the panel is enabled): **Blinking caret**, **Background opacity** (0–100 %), and an **X / Y nudge** to align the box under your tabs.
-
-> **Heads-up:** the panel currently appears *in addition to* FFXI's native input bar — your keystrokes, auto-translate, history and IME all still run through the game's own input. Hiding the native bar cleanly needs a render-level hook and is planned for a later update.
-
 ## Auto-hide
 
 Auto-hide makes Fancychat fade out after a configurable period of inactivity. Enable it in Settings → Chat Window → "Enable Auto-Hide window"; the slider sets the idle delay (5–60 seconds before fade starts).

@@ -664,15 +664,7 @@ function M.register()
 				fcw3.BigModePrev = false
 			end
 
-			-- Phase 2: with the anchored input panel enabled, keep window 1
-			-- rendered while the native input is open (0x11) even though
-			-- opening input expands the legacy chat and flips LegacyChatOpen.
-			-- This lets the panel anchor without requiring "Show with legacy
-			-- chat".  Mirrored in lib/chatinput.lua's window1_visible().
-			local keepForInput = allSettings.ChatInputPanel[1]
-				and AshitaCore:GetChatManager():IsInputOpen() == 0x11
-
-			if ((not uiw.LegacyChatOpen or allSettings.ShowWithLegacy[1] or keepForInput) and not fcw1.HideChat and not fcw1.Closing and fcw1.autoHideFade < 1 and not fcw3.BigMode) then
+			if ((not uiw.LegacyChatOpen or allSettings.ShowWithLegacy[1]) and not fcw1.HideChat and not fcw1.Closing and fcw1.autoHideFade < 1 and not fcw3.BigMode) then
 			
 				
 				
