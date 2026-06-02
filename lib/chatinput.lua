@@ -114,7 +114,12 @@ end
 -- guarding the window-1 render branch in render.lua (line ~667) so our
 -- panel appears/disappears in lockstep with the chat it anchors to.
 local function window1_visible()
-	return (not uiw.LegacyChatOpen or allSettings.ShowWithLegacy[1])
+	-- Mirror render.lua's window-1 gate, including the Phase 2 "keep
+	-- visible while typing" disjunct so the panel shows whenever the
+	-- chat plate is actually being rendered.
+	local keepForInput = allSettings.ChatInputPanel[1]
+		and AshitaCore:GetChatManager():IsInputOpen() == 0x11
+	return (not uiw.LegacyChatOpen or allSettings.ShowWithLegacy[1] or keepForInput)
 		and not fcw[1].HideChat
 		and not fcw[1].Closing
 		and (fcw[1].autoHideFade or 0) < 1
