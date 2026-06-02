@@ -15,9 +15,9 @@
 -- visibility conditions render.lua uses for the primary window.
 
 require('common')
-local gdi      = require('gdifonts.include')
-local encoding = require('gdifonts.encoding')
-local state    = require('lib.state')
+local gdi   = require('gdifonts.include')
+local utils = require('utils')
+local state = require('lib.state')
 
 local fcw         = state.fcw
 local ro          = state.ro
@@ -167,12 +167,15 @@ local function update()
 	end
 	boxY = boxY + 2
 
-	-- Live input text (SJIS in the game) → UTF-8 for the gdi renderer.
-	-- Auto-translate token decoding / caret tracking come in Phase 3;
-	-- for now a simple blinking end-caret is enough to validate.
-	local raw   = AshitaCore:GetChatManager():GetInputTextRaw() or ''
-	local text  = encoding:ShiftJIS_To_UTF8(raw, true)
-	local caret = ((os.clock() % 1) < 0.5) and '|' or ' '
+	-- Live input text → UTF-8 for the gdi renderer, rendered exactly like
+	-- chat: expand auto-translate tokens (same as parser.lua), then run
+	-- the full FFXI transcoder so SJIS, game glyphs, and the auto-
+	-- translate brackets (\xEF\x27/\x28 → ❮ ❯) map correctly instead of
+	-- turning into gibberish / centered dots.
+	local raw    = AshitaCore:GetChatManager():GetInputTextRaw() or ''
+	local parsed = AshitaCore:GetChatManager():ParseAutoTranslate(raw, true)
+	local text   = utils.TranscodeFFXI(parsed or raw, false, false)
+	local caret  = ((os.clock() % 1) < 0.5) and '|' or ' '
 
 	panelBG:set_fill_color(plate.fill_color)
 	panelBG:set_width(boxW)
