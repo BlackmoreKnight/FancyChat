@@ -60,6 +60,9 @@ ffi.cdef[[
     bool GetFontAvailable(const char* font);
     void EnableTextureDump(uint32_t* pManager, const char* folder);
     void DisableTextureDump(uint32_t* pManager);
+    void UpdateInputBarHook(uint32_t element, uint32_t menuID, int suppress);
+    void RemoveInputBarHook();
+    uint32_t InputBarStat(int which);
 ]]
 
 local interface = renderer.CreateFontManager(d3d.get_device());
@@ -208,6 +211,19 @@ end
 
 function exports:render()
     render_objects();
+end
+
+-- FancyChat native input-bar hide hook (see Exports.cpp).
+function exports:UpdateInputBarHook(element, menuID, suppress)
+    renderer.UpdateInputBarHook(element or 0, menuID or 0, suppress and 1 or 0);
+end
+
+function exports:RemoveInputBarHook()
+    renderer.RemoveInputBarHook();
+end
+
+function exports:InputBarStat(which)
+    return tonumber(renderer.InputBarStat(which));
 end
 
 function exports:set_auto_render(enabled)

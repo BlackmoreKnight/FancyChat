@@ -33,6 +33,27 @@ function M.register()
 			fcw[3].BigMode = not fcw[3].BigMode
 			return
 		end
+
+		-- Dev (Approach B): /fchat vt — dump the inline menu's handler
+		-- pointer to test whether it's a hookable vtable.
+		if (#args == 2 and args[2] == 'vt') then
+			if FCVtArm then FCVtArm() end
+			return
+		end
+
+		-- Dev (Approach B): /fchat hs — print native-bar hook stats.
+		if (#args == 2 and args[2] == 'hs') then
+			local gdi = require('gdifonts.include')
+			if gdi.InputBarStat then
+				print(('[fchat] hook vtable=0x%08X orig=0x%08X element=0x%08X lastThis=0x%08X')
+					:format(gdi:InputBarStat(0), gdi:InputBarStat(6), gdi:InputBarStat(1), gdi:InputBarStat(4)))
+				print(('[fchat] hook suppress=%d renderCalls=%d skips=%d')
+					:format(gdi:InputBarStat(5), gdi:InputBarStat(2), gdi:InputBarStat(3)))
+			else
+				print('[fchat] InputBarStat unavailable (old DLL?)')
+			end
+			return
+		end
 		--[[  Commented out: action-packet debug commands.  Re-enable
 		      together with the matching block in lib/combat_packets.lua
 		      when investigating packet capture / classification issues.

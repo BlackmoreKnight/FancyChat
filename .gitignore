@@ -23,3 +23,8 @@ maps/__pycache__/
 # Local-only Consolas fonts and user filter data (not part of repo source)
 gdifonts/consola*.ttf
 filters/
+
+# build outputs
+custom gdifonts src/Release/
+custom gdifonts src/gdifonttexture/
+*.bak

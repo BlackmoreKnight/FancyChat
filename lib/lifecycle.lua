@@ -532,6 +532,9 @@ function M.register()
 	-- chat for the next addon to pick up, then tear down GDI and persist.
 	-- =====================================================================
 	ashita.events.register('unload', 'unload_cb', function ()
+		-- Remove the native input-bar vtable patch before the DLL/Lua
+		-- state tears down, so a reload can't leave a dangling pointer.
+		if ChatInputUnhook then ChatInputUnhook() end
 		if allSettings.autoDumpChat[1] then
 			M.DumpChat()
 		end

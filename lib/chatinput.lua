@@ -218,14 +218,87 @@ local function update()
 	end
 end
 
+-- ===================================================================
+-- Approach-B RE helper (read-only): dump the inline menu's stack-entry
+-- handler pointer (MenuID +0x0C, stable across opens) and the words it
+-- points at, to test whether it's a function table / vtable we can hook.
+-- Armed by /fchat vt; fires the next time the input is open (typing the
+-- command itself closes the input, so a one-shot read can't see it).
+-- ===================================================================
+local vt_armed = false
+
+function M.vt_arm()
+	vt_armed = true
+	print('[fchat] vt armed — open the chat input; result prints while it is open.')
+end
+_G.FCVtArm = M.vt_arm
+
+local function vt_capture()
+	vt_armed = false
+	local mp = uiw.MenuPtr
+	if not mp or mp == 0 then print('[fchat] vt: MenuPtr unresolved'); return end
+	local menuID = ashita.memory.read_uint32(mp)
+	if menuID == 0 then print('[fchat] vt: no menu on stack'); return end
+	local obj     = ashita.memory.read_uint32(menuID + 4)
+	local name    = ashita.memory.read_string(obj + 0x46, 16):gsub('\x00', ''):trimex()
+	local handler = ashita.memory.read_uint32(menuID + 0x0C)
+	print(('[fchat] vt name="%s" obj=0x%08X MenuID=0x%08X handler(+0C)=0x%08X'):format(name, obj, menuID, handler))
+	if handler ~= 0 then
+		-- Code pointers will look like FFXiMain.dll addresses (~0x10xxxxxx);
+		-- heap/data will look like 0x04/0x0C/0x20xxxxxx.
+		for row = 0, 0x3C, 0x10 do
+			print(('[fchat]   +%02X: %08X %08X %08X %08X'):format(row,
+				ashita.memory.read_uint32(handler + row),     ashita.memory.read_uint32(handler + row + 4),
+				ashita.memory.read_uint32(handler + row + 8), ashita.memory.read_uint32(handler + row + 12)))
+		end
+	end
+end
+
+-- Phase 2: drive the native-bar hide hook in gdifonttexture.dll.  Each
+-- frame, when the panel is on and the chat input is open, locate the
+-- inline-prompt element (the same one the vt probe found:
+-- element = [MenuID+0x0C], with the menu name confirmed as "inline") and
+-- tell the DLL to suppress its draw.  Otherwise suppress = false so the
+-- native bar renders normally.
+local function update_bar_hook()
+	if not gdi.UpdateInputBarHook then return end
+	local element, ownerMenu, suppress = 0, 0, false
+	if allSettings.ChatInputPanel and allSettings.ChatInputPanel[1]
+		and AshitaCore:GetChatManager():IsInputOpen() == 0x11
+		and uiw.MenuPtr and uiw.MenuPtr ~= 0 then
+		local menuID = ashita.memory.read_uint32(uiw.MenuPtr)
+		if menuID ~= 0 then
+			local obj  = ashita.memory.read_uint32(menuID + 4)
+			local name = ashita.memory.read_string(obj + 0x46, 16)
+			if name and name:find('inline') then
+				element   = ashita.memory.read_uint32(menuID + 0x0C)
+				ownerMenu = menuID   -- elements store their MenuID at +0x08
+				suppress  = true
+			end
+		end
+	end
+	gdi:UpdateInputBarHook(element, ownerMenu, suppress)
+end
+
 function M.register()
 	-- Registered AFTER render.register() (see fancychat.lua) so the
 	-- plate geometry we read has already been updated for this frame.
 	ashita.events.register('d3d_present', 'fc_chatinput_present', function ()
+		if vt_armed and AshitaCore:GetChatManager():IsInputOpen() == 0x11 then
+			pcall(vt_capture)
+		end
+		pcall(update_bar_hook)
 		-- Never let a draw error kill the frame; just skip the panel.
 		local ok, err = pcall(update)
 		if not ok then hide() end
 	end)
 end
+
+-- Remove the DLL vtable patch on addon unload so a reload can't leave a
+-- dangling pointer into freed code.
+function M.unhook()
+	if gdi.RemoveInputBarHook then pcall(function() gdi:RemoveInputBarHook() end) end
+end
+_G.ChatInputUnhook = M.unhook
 
 return M
