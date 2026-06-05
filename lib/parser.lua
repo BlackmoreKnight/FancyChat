@@ -768,6 +768,7 @@ parseThis = function(e, e_message)
 	elseif string_sub(lm, 1,  5) == 'shout'        then col = colors.shout[1]
 	elseif string_sub(lm, 1,  5) == 'emote'        then col = colors.emote[1]
 	elseif string_sub(lm, 1,  6) == 'assist'       then col = colors.assist[1]
+	elseif string_sub(lm, 1,  5) == 'unity'        then col = colors.unity[1]
 	-- Longer prefix first: 'error1' must be tested before 'error' or
 	-- string_sub(lm, 1, 5) == 'error' would also match mode 123's
 	-- 'error1' name and route it to the wrong palette slot.

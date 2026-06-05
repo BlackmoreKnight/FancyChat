@@ -279,7 +279,7 @@ local utils = {
 		{208, 'examined',       0xFFC797FF},
 		{209, 'system8',        0xFFFFF3DA},  -- Ability CD timer ends here
 		{210, 'party_NPC',      0xFF7BD3FF},
-		{211, 'unity',          0xFFFFFFFF},
+		{211, 'unity',          0xFFFFD270},
 		{212, 'unity',          0xFFFFD270},
 		{213, 'linkshell2out',  0xFF00FF80},
 		{214, 'linkshell2',     0xFF00FF80},
