@@ -4,6 +4,7 @@ require('common')
 local utils = require('utils')
 local help  = require('help')
 local state = require('lib.state')
+local gdi   = require('gdifonts.include')
 
 local fcw         = state.fcw
 local dw          = state.dw
@@ -33,6 +34,15 @@ function M.register()
 			fcw[3].BigMode = not fcw[3].BigMode
 			return
 		end
+
+		if (#args == 2 and args[2] == 'fontdiag') then
+			local status, result = gdi:get_custom_font_status()
+			local names = {[0] = 'not attempted', [1] = 'loaded', [-1] = 'failed'}
+			print(('[fchat] custom font: %s; GDI+ result=%d'):format(
+				names[status] or tostring(status), result or -999))
+			return
+		end
+
 		--[[  Commented out: action-packet debug commands.  Re-enable
 		      together with the matching block in lib/combat_packets.lua
 		      when investigating packet capture / classification issues.
