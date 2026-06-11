@@ -52,6 +52,12 @@ The compact combat log uses custom glyphs from the bundled `gameicons.ttf`. If y
 1. Make sure `addons/fancychat/gdifonts/gameicons.ttf` exists — it ships with the addon.
 2. Make sure `addons/fancychat/gdifonts/gdifonttexture.dll` exists.
 3. If you copied the addon manually, ensure both files copied — they're tracked in the repo.
+4. Run `/fchat fontdiag` to ask the font DLL directly whether `gameicons.ttf` loaded:
+   - `loaded` — the custom font is active; boxes are likely a different glyph/codepoint issue.
+   - `failed` — `AddFontFile` rejected the file (the reported `GDI+ result` is the raw status code); the `.ttf` is missing or corrupt.
+   - `not attempted` — no compact-combat line has been rendered yet, so the one-shot load hasn't run; trigger some combat output and re-check.
+
+> If the glyphs render as boxes only after an `/addon reload` (and were fine on first load), update `gdifonttexture.dll` to the current build — older builds tore down the shared GDI+ font collection when the first chat window was destroyed, leaving the survivors with no font.
 
 ## Visual conflicts (duplicated lines, broken colours, missing spaces)
 

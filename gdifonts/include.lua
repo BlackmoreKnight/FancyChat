@@ -58,6 +58,8 @@ ffi.cdef[[
     GdiFontReturn_t CreateRectTexture(uint32_t* pManager, GdiRectData_t* data);
 	GdiFontReturn_t CreateRectTexture(uint32_t* pManager, GdiRectData_t* data);
     bool GetFontAvailable(const char* font);
+    int GetCustomFontStatus(void);
+    int GetCustomFontLoadResult(void);
     void EnableTextureDump(uint32_t* pManager, const char* folder);
     void DisableTextureDump(uint32_t* pManager);
 ]]
@@ -204,6 +206,10 @@ function exports:get_font_available(fontName)
     result = renderer.GetFontAvailable(fontName);
     checkedFonts[fontName] = result;
     return result;
+end
+
+function exports:get_custom_font_status()
+    return tonumber(renderer.GetCustomFontStatus()), tonumber(renderer.GetCustomFontLoadResult());
 end
 
 function exports:render()

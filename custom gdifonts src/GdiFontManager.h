@@ -7,10 +7,15 @@
 
 #include "Defines.h"
 
+extern bool fontLoaded;
+extern bool fontLoadAttempted;
+extern int fontLoadResult;
+
 class GdiFontManager
 {
 private:
     ULONG_PTR m_GDIToken;
+    bool m_GDIStarted;
     IDirect3DDevice8* m_Device;
     Gdiplus::Bitmap* m_Bitmap;
     Gdiplus::Graphics* m_Graphics;

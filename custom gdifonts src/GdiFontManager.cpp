@@ -8,7 +8,37 @@
 #include <cctype>
 #include <unordered_map> // for g_familyCache (Tier-1 perf: cache pFontFamily by name)
 
+// Process-wide font resources shared by every GdiFontManager.  The addon
+// instantiates several managers (one per chat window / rect object), all
+// living in this single DLL, so these MUST outlive any individual manager.
+//
+// Bug this fixes: the old build kept g_fontCollection as a static object
+// and the FIRST manager destroyed to run its destructor would explicitly
+// destruct it AND call GdiplusShutdown, while later managers (and the
+// process-exit static teardown) still referenced freed GDI+ state.  After
+// the version update that triggered an extra construct/destruct cycle, the
+// surviving managers rendered against a torn-down collection -> blank/garbled
+// glyphs.  We now reference-count: the shared font state is created lazily by
+// the first manager and freed only when the LAST one is destroyed, and each
+// manager only shuts down GDI+ if it successfully started it (m_GDIStarted).
+namespace
+{
+Gdiplus::PrivateFontCollection* g_fontCollection = nullptr;
+Gdiplus::FontFamily* g_customFont = nullptr;
+Gdiplus::FontFamily* g_emojiFont = nullptr;
+Gdiplus::FontFamily* g_symbolFont = nullptr;
+std::unordered_map<std::wstring, Gdiplus::FontFamily*> g_familyCache;
+size_t g_managerCount = 0;  // live managers that started GDI+; gates teardown
+}
 
+// Font-load state, queried from Lua via GetCustomFontStatus/LoadResult so
+// /fchat fontdiag can report whether gameicons.ttf actually loaded.
+//   fontLoadAttempted - the one-shot load ran (success or not); stops retry
+//   fontLoaded        - g_customFont is valid and usable
+//   fontLoadResult    - raw Gdiplus::Status from AddFontFile (-1 = untried)
+bool fontLoaded = false;
+bool fontLoadAttempted = false;
+int fontLoadResult = -1;
 
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
 {
@@ -42,13 +72,21 @@ int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
 }
 
 GdiFontManager::GdiFontManager(IDirect3DDevice8* pDevice)
-    : m_Device(pDevice)
+    : m_GDIToken(0)
+    , m_GDIStarted(false)
+    , m_Device(pDevice)
     , m_CanvasWidth(2048)
     , m_CanvasHeight(2048)
     , m_SaveToHardDrive(false)
 {
     Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-    Gdiplus::GdiplusStartup(&m_GDIToken, &gdiplusStartupInput, NULL);
+    m_GDIStarted = Gdiplus::GdiplusStartup(&m_GDIToken, &gdiplusStartupInput, NULL) == Gdiplus::Ok;
+    if (m_GDIStarted)
+    {
+        ++g_managerCount;
+        if (!g_fontCollection)
+            g_fontCollection = new Gdiplus::PrivateFontCollection();
+    }
 
     // Create bitmap in memory..
     m_Size     = m_CanvasWidth * m_CanvasHeight * 4;
@@ -80,51 +118,34 @@ GdiFontManager::GdiFontManager(IDirect3DDevice8* pDevice)
     setlocale(LC_ALL, "");
 }
 
-Gdiplus::PrivateFontCollection g_fontCollection;
-Gdiplus::FontFamily* g_customFont = nullptr;
-
-// Process-wide singletons for the two fallback fonts the codepoint
-// loop in CreateFontTextureColor uses for non-BMP / non-PUA glyphs.
-// Gdiplus::FontFamily(name) enumerates the installed-font registry to
-// resolve the family - non-trivial, and the family name never changes,
-// so we build once and reuse for the DLL's lifetime.
-Gdiplus::FontFamily* g_emojiFont  = nullptr;
-Gdiplus::FontFamily* g_symbolFont = nullptr;
-
-// Cache for the per-call "main" font family (data.FontFamily, which is
-// almost always the same string across calls in normal use).  Avoids
-// the FontFamily ctor + heap churn on every CreateFontTextureColor.
-// Entries live for the DLL's lifetime; cleaned up in the dtor below.
-std::unordered_map<std::wstring, Gdiplus::FontFamily*> g_familyCache;
-
 GdiFontManager::~GdiFontManager()
 {
-    if (g_customFont)
-    {
-        delete g_customFont;
-        g_customFont = nullptr;
-    }
-    if (g_emojiFont)
-    {
-        delete g_emojiFont;
-        g_emojiFont = nullptr;
-    }
-    if (g_symbolFont)
-    {
-        delete g_symbolFont;
-        g_symbolFont = nullptr;
-    }
-    for (auto& kv : g_familyCache)
-    {
-        delete kv.second;
-    }
-    g_familyCache.clear();
-
-    g_fontCollection.~PrivateFontCollection();
     delete this->m_Graphics;
     delete this->m_Bitmap;
     free(m_RawImage);
-    Gdiplus::GdiplusShutdown(m_GDIToken);
+
+    // Free the shared font state only when the last GDI+-owning manager
+    // goes away; otherwise survivors would render against freed collections.
+    if (m_GDIStarted && g_managerCount > 0 && --g_managerCount == 0)
+    {
+        delete g_customFont;
+        g_customFont = nullptr;
+        delete g_emojiFont;
+        g_emojiFont = nullptr;
+        delete g_symbolFont;
+        g_symbolFont = nullptr;
+        for (auto& kv : g_familyCache)
+            delete kv.second;
+        g_familyCache.clear();
+        delete g_fontCollection;
+        g_fontCollection = nullptr;
+        fontLoaded = false;
+        fontLoadAttempted = false;
+        fontLoadResult = -1;
+    }
+
+    if (m_GDIStarted)
+        Gdiplus::GdiplusShutdown(m_GDIToken);
 }
 
 GdiFontReturn_t GdiFontManager::CreateFontTexture(GdiFontData_t data)
@@ -655,12 +676,11 @@ std::vector<uint32_t> Utf16ToUtf32(const wchar_t* src)
     return out;
 }
 
-bool fontLoaded = false;
-
 GdiFontReturn_t GdiFontManager::CreateFontTextureColor(GdiFontData_t data)
 {
 	Gdiplus::Status status;
-	if (!fontLoaded) {
+	if (!fontLoadAttempted) {
+		fontLoadAttempted = true;
         
         // Resolve gameicons.ttf relative to THIS DLL, which lives in the
         // addon's gdifonts folder right next to the font.  Deriving from
@@ -690,21 +710,24 @@ GdiFontReturn_t GdiFontManager::CreateFontTextureColor(GdiFontData_t data)
                 *lastSlash = 0;
             fontPath = std::wstring(exePath) + L"\\../addons/fancychat/gdifonts/gameicons.ttf";
         }
-        status = g_fontCollection.AddFontFile(fontPath.c_str());
+        status = g_fontCollection
+            ? g_fontCollection->AddFontFile(fontPath.c_str())
+            : Gdiplus::GdiplusNotInitialized;
+		fontLoadResult = static_cast<int>(status);
 		
 		if (status == Gdiplus::Ok) {
             
-            int count = g_fontCollection.GetFamilyCount();
+            int count = g_fontCollection->GetFamilyCount();
             if (count > 0)
             {
                 Gdiplus::FontFamily families[1];
                 int found = 0;
-                g_fontCollection.GetFamilies(1, families, &found);
+                g_fontCollection->GetFamilies(1, families, &found);
                 if (found > 0)
                 {
                     WCHAR familyName[LF_FACESIZE];
                     families[0].GetFamilyName(familyName);
-                    g_customFont = new Gdiplus::FontFamily(familyName, &g_fontCollection);
+                    g_customFont = new Gdiplus::FontFamily(familyName, g_fontCollection);
 
                     fontLoaded = true;
                 }
