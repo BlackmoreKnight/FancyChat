@@ -446,6 +446,24 @@ function M.CombatText(msg, chn)
 		end
 	end
 
+	-- No-killer death.  Mobs that award no XP (already claimed, trivial,
+	-- etc.) die with "The X falls to the ground." instead of a "defeats"
+	-- line, so neither pattern above catches it.  There is no actor, just
+	-- the victim, so we render it as the foe + kill glyph and colour from
+	-- the glyph the same way the defeat lines do.
+	if msg:find('falls to the ground') then
+		B = msg:match('^(.*) falls to the ground%.$')
+		if B then
+			B = classifyB(B)
+
+			local defeat = combatCP.KILL
+			msg = B..' '..defeat
+			par.isDamage     = true
+			par.CombatCutIdx = msg:find(defeat, 1, true) - 1
+			return msg
+		end
+	end
+
 	if msg:find('shadows') then
 		Ext, A = msg:match('^(%d*) of (.+)\'s shadows.*$')
 		if A and Ext then
