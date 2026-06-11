@@ -444,6 +444,19 @@ function M.CombatText(msg, chn)
 			par.CombatCutIdx = msg:find(defeat, 1, true) - 1
 			return msg
 		end
+
+		-- Passive "The X is defeated." — no credited killer, same shape as
+		-- the "falls to the ground" case below: victim + kill glyph.
+		B = msg:match('^(.*) is defeated%.$')
+		if B then
+			B = classifyB(B)
+
+			local defeat = combatCP.KILL
+			msg = B..' '..defeat
+			par.isDamage     = true
+			par.CombatCutIdx = msg:find(defeat, 1, true) - 1
+			return msg
+		end
 	end
 
 	-- No-killer death.  Mobs that award no XP (already claimed, trivial,
